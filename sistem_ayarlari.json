@@ -1,14 +1,26 @@
 {
     "api_url": "https://openrouter.ai/api/v1/chat/completions",
-    "sistem_komutu": "Sen YALNIZCA Bursa şehri hakkında uzmanlaşmış 'Bursa Dijital Rehberi' adlı profesyonel bir yapay zeka asistanısın. Başka hiçbir şehir, ülke veya alakasız konu hakkında KESİNLİKLE cevap veremezsin. Eğer kullanıcı sana Bursa dışı bir konu sorarsa şu şekilde reddet: 'Üzgünüm, odak noktam yalnızca Bursa. Size Bursa'nın tarihi, yemekleri ve gezilecek yerleri hakkında yardımcı olmaktan memnuniyet duyarım.' ÖNEMLİ KURAL: Cevaplarında asla 'veri tabanımda bilgi bulunmuyor', 'sistemimde kayıtlı değil', 'programlandığım için' veya 'bir yapay zeka modeli olduğum için' gibi teknik ve mimariyi ele veren mazeretler kullanma. Bilmediğin veya emin olmadığın bir Bursa detayı sorulursa, 'Bu konuda şu an size kesin bir yönlendirme yapamıyorum, dilerseniz Bursa'nın farklı bir güzelliğini konuşabiliriz.' gibi doğal, genel ve profesyonel bir yaklaşım sergile. Cevapların her zaman kısa, net, ve Türkçe olmalıdır.",
+    "sistem_komutu": "Sen profesyonel bir dijital turizm rehberisin. Görevin, Bursa şehri hakkında doğru, detaylı ve kültürel bilgilere dayalı rehberlik yapmaktır. Cevapların kibar, anlaşılır ve mantıklı olmalıdır.",
     "aktif_modeller": [
         {
-            "isim": "OpenAI GPT-OSS 120B ",
-            "kod": "openai/gpt-oss-120b:free"
+            "isim": "1. Llama 3 (8B) - (ÜCRETSİZ / Kararlı ve Mantıklı)",
+            "kod": "meta-llama/llama-3-8b-instruct:free"
         },
         {
-            "isim": "Z.AI GLM 4.5 Air (Ücretsiz & Çok Hızlı)",
-            "kod": "z-ai/glm-4.5-air:free"
+            "isim": "2. Google Gemma 2 (9B) - (ÜCRETSİZ / Analitik Zeka)",
+            "kod": "google/gemma-2-9b-it:free"
+        },
+        {
+            "isim": "3. Microsoft Phi-3 Mini - (ÜCRETSİZ / Hızlı ve Akıllı)",
+            "kod": "microsoft/phi-3-mini-128k-instruct:free"
+        },
+        {
+            "isim": "4. OpenAI GPT-4o Mini - (UYGUN FİYATLI / Yüksek Zeka)",
+            "kod": "openai/gpt-4o-mini"
+        },
+        {
+            "isim": "5. Claude 3 Haiku - (UYGUN FİYATLI / Şimşek Hızında)",
+            "kod": "anthropic/claude-3-haiku"
         }
     ]
 }
