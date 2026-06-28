@@ -1,0 +1,22 @@
+{
+    "api_url": "https://openrouter.ai/api/v1/chat/completions",
+    "sistem_komutu": "Sen profesyonel bir dijital turizm rehberisin. Görevin, Bursa şehri hakkında doğru, detaylı ve kültürel bilgilere dayalı rehberlik yapmaktır. Cevapların kibar, anlaşılır ve mantıklı olmalıdır.",
+    "aktif_modeller": [
+        {
+            "isim": "1. OpenAI GPT-4o Mini (Ana Motor / Yüksek Zeka)",
+            "kod": "openai/gpt-4o-mini"
+        },
+        {
+            "isim": "2. Claude 3 Haiku (Ana Motor / Şimşek Hızında)",
+            "kod": "anthropic/claude-3-haiku"
+        },
+        {
+            "isim": "3. Google Gemini Flash (Ana Motor / Dinamik)",
+            "kod": "google/gemini-1.5-flash"
+        },
+        {
+            "isim": "4. Llama 3 8B (Acil Durum Ücretsiz Yedek Motor)",
+            "kod": "meta-llama/llama-3-8b-instruct:free"
+        }
+    ]
+}
