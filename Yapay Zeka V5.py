@@ -86,10 +86,10 @@ def welcome_and_consent():
     while True:
         answer = input("\nBu şeffaflık ilkeleri doğrultusunda, verilerinizin işlenmesini onaylıyor musunuz? (Evet/Hayır): ").strip().lower()
 
-        if answer in ['evet', 'e', 'yes', 'y']:
+        if answer in ['evet']:
             consent_status = True
             break 
-        elif answer in ['hayır', 'h', 'hayir', 'no', 'n']:
+        elif answer in ['hayır']:
             consent_status = False
             break
         else:
