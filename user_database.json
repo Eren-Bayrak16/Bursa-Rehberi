@@ -1,0 +1,22 @@
+{
+    "Deneme1": {
+        "consent_status": true,
+        "registration_date": "2026-06-28 16:31:05"
+    },
+    "Denemee1": {
+        "consent_status": true,
+        "registration_date": "2026-06-28 16:39:52"
+    },
+    "Deneme2": {
+        "consent_status": true,
+        "registration_date": "2026-06-28 17:14:40"
+    },
+    "Eren": {
+        "consent_status": true,
+        "registration_date": "2026-06-29 15:13:11"
+    },
+    "eren": {
+        "consent_status": true,
+        "registration_date": "2026-07-04 17:05:17"
+    }
+}

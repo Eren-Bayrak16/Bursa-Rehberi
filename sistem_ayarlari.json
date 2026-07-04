@@ -1,0 +1,19 @@
+{
+    "api_url": "https://openrouter.ai/api/v1/chat/completions",
+    "sistem_komutu": "Sen profesyonel bir dijital turizm rehberisin. Görevin, Bursa şehri hakkında doğru, detaylı ve kültürel bilgilere dayalı rehberlik yapmaktır. Cevapların kibar, anlaşılır ve mantıklı olmalıdır.",
+    "aktif_modeller": [
+        {
+            "isim": "OpenAI GPT-4o Mini ",
+            "kod": "openai/gpt-4o-mini"
+        },
+        {
+            "isim": "Claude 3 Haiku ",
+            "kod": "anthropic/claude-3-haiku"
+        },
+        {
+           "isim": "Google Gemini 2.5 Flash ",
+           "kod": "google/gemini-2.5-flash"        
+	}
+        
+    ]
+}

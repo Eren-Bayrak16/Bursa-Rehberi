@@ -1,0 +1,221 @@
+﻿Tarih;Kullanıcı Adı;Kullanılan Model;Kullanıcı Sorusu;Yapay Zeka Cevabı
+26.05.2026 15:48;Deneme2;OpenAI GPT-OSS 120B ;Bursa nasıl bir yer;Bursa, Osmanlı’nın ilk başkenti ve “Yeşil Bursa” olarak anılan, doğa ve tarih kokan bir şehirdir. Uludağ’ın eteklerinde, ormanları, termal kaynakları ve kaplıcalarıyla doğa tutkunlarına, tarihi çarşıları, Osmanlı mimarisiyle süslü camileri ve hanlarıyla kültür meraklılarına, İskender, kestane şekeri ve cantık gibi lezzetli mutfağıyla da gurme gezginlerine ayrı bir çekim sunar. Şehir, modern yaşam olanakları ile geleneksel atmosferi dengeli bir şekilde harmanlayarak ziyaretçilere hem dinlenme hem keşfetme fırsatı verir.
+2026-05-26 15:49:07;Deneme2;OpenAI GPT-OSS 120B ;bursa;Merhaba! Bursa hakkında tarih, lezzetler veya gezilecek yerler gibi konularda size nasıl yardımcı olabilirim?
+2026-06-28 16:31:26;Deneme1;1. Llama 3 (8B) - (ÜCRETSİZ / Kararlı ve Mantıklı);Bursa nasıl bir yer;"[SİSTEM UYARISI] OpenRouter İsteği Reddetti (Kod: 404)
+Sunucu Diyor ki: {""error"":{""message"":""This model is unavailable for free. The paid version is available now - use this slug instead: meta-llama/llama-3-8b-instruct"",""code"":404},""user_id"":""user_3Citbgxhu0aWN8Yhw2Fu2OhurjL""}"
+2026-06-28 16:31:44;Deneme1;2. Google Gemma 2 (9B) - (ÜCRETSİZ / Analitik Zeka);bursa nasıl bir yer;"[SİSTEM UYARISI] OpenRouter İsteği Reddetti (Kod: 404)
+Sunucu Diyor ki: {""error"":{""message"":""No endpoints found for google/gemma-2-9b-it:free."",""code"":404},""user_id"":""user_3Citbgxhu0aWN8Yhw2Fu2OhurjL""}"
+2026-06-28 16:31:55;Deneme1;3. Microsoft Phi-3 Mini - (ÜCRETSİZ / Hızlı ve Akıllı);bursa nasıl bir yer;"[SİSTEM UYARISI] OpenRouter İsteği Reddetti (Kod: 404)
+Sunucu Diyor ki: {""error"":{""message"":""No endpoints found for microsoft/phi-3-mini-128k-instruct:free."",""code"":404},""user_id"":""user_3Citbgxhu0aWN8Yhw2Fu2OhurjL""}"
+2026-06-28 16:32:16;Deneme1;4. OpenAI GPT-4o Mini - (UYGUN FİYATLI / Yüksek Zeka);bursa nasıl bir yer;"Bursa, Türkiye'nin Marmara Bölgesi'nde yer alan tarihi ve kültürel zenginlikleriyle tanınan bir şehirdir. Osmanlı İmparatorluğu'nun ilk başkenti olan Bursa, bu özelliğiyle tarihi açıdan büyük bir öneme sahiptir. İşte Bursa hakkında bazı detaylı bilgiler:
+
+### Tarih ve Kültürel Miras
+- **Osmanlı Mirası:** Bursa, Osmanlı İmparatorluğu’nun ilk başkenti olduğu için pek çok tarihi yapıya ev sahipliği yapmaktadır. Ulu Camii, Yeşil Türbe ve Emir Sultan Camii gibi önemli yapılar burada bulunmaktadır.
+- **Tarihî Çeşmeler ve Külliyeler:** Bursa, birçok tarihi çeşme ve külliye ile doludur. Bu yapılar, hem mimari açıdan hem de sosyal hayat açısından zengin bir geçmişi yansıtır.
+
+### Doğa ve Manzara
+- **Bursa'nın Doğası:** Şehri çevreleyen Bursa Dağları ve Uludağ, doğal güzellikleri ile ünlüdür. Kış turizmi açısından önemli bir merkez olan Uludağ, kayak ve doğa yürüyüşü imkânı sunar.
+- **Yeşil Alanlar:** Bursa'da birçok park ve bahçe bulunmaktadır. Kentin simgelerinden biri olan Botanik Park, dinlenmek ve doğayla iç içe olmak için harika bir yerdir.
+
+### Gastronomi
+- **Bursa İskender Kebabı:** Bursa'nın en ünlü lezzetlerinden biri olan İskender kebabı, döner etinin yoğurt ve domates sosuyla servis edildiği bir yemektir.
+- **Kadayıf ve Kemalpaşa Tatlısı:** Türkiye'nin çeşitli yerlerinde bilinen bu tatlılar, Bursa'nın yerel mutfağının önemli bir parçasıdır.
+
+### Kültürel Etkinlikler
+- **Festivaller:** Bursa, yıl boyunca çeşitli kültürel etkinliklere ev sahipliği yapmaktadır. Bursa Festivali, Uluslararası Bursa Çocuk Şenliği gibi etkinlikler, şehrin kültürel zenginliğini sergiler.
+- **Sanat ve El Sanatları:** Bursa'da geleneksel Türk el sanatları, özellikle ipek dokuma ve platino baskı gibi sanatlar oldukça gelişmiştir.
+
+### Ulaşım
+Bursa, İstanbul'a yakınlığı ile de dikkat çeker. Feribot ve kara yoluyla ulaşım oldukça kolaydır. Ayrıca şehir içinde toplu taşıma seçenekleri mevcut olup, ulaşımı oldukça rahattır.
+
+Bursa, hem tarihi hem de doğasıyla zengin bir deneyim sunan bir şehirdir. Hem kültürel hem de doğal güzelliklere meraklıysanız, Bursa kesinlikle ziyaret edilmesi gereken yerlerden biridir."
+2026-06-28 16:32:36;Deneme1;5. Claude 3 Haiku - (UYGUN FİYATLI / Şimşek Hızında);bursa nasıl bir yer;"Bursa, Türkiye'nin önemli şehirlerinden biri olup pek çok kültürel ve tarihi mirasa ev sahipliği yapıyor. Şehrin ana özellikleri şöyle özetlenebilir:
+
+- Tarih: Bursa, Osmanlı İmparatorluğu'nun ilk başkenti olmasından dolayı tarihi bakımından çok zengin. Eski kent merkezi, Osmanlı döneminden kalan cami, bedesten, han gibi yapılarla dolu.
+
+- Doğa: Şehir, Uludağ Dağı'nın eteklerinde kurulduğu için etkileyici bir doğal güzelliğe sahip. Kış turizminin merkezi Uludağ, yaz aylarında da ziyaretçileri çekiyor.
+
+- Kültür-Gastronomi: Bursa, Osmanlı mutfak kültürünün merkezidir. Meşhur İskender kebabı, Kemalpaşa tatlısı, Candır helvası gibi lezzetleri bulunuyor. Ayrıca el sanatları ve geleneksel dokumacılık kenti olarak da tanınıyor.
+
+- Mimari: Yeşil Cami, Ulu Cami, Orhan Gazi Türbesi gibi Osmanlı mimarisinin zarif örnekleri görülebilir. Ayrıca ahşap Osmanlı evleri ve tarihi hanlar da şehrin önemli mimari mirasını oluşturuyor.
+
+Bursa, sahip olduğu bu zengin tarih, kültür ve doğal güzellikleriyle Türkiye'nin önemli bir turizm merkezi konumunda. Ziyaretçiler, şehrin bu çeşitli özelliklerini keşfedebilirler."
+2026-06-28 16:33:00;Deneme1;5. Claude 3 Haiku - (UYGUN FİYATLI / Şimşek Hızında);evliyalar kimler;"Bursa, Türkiye'nin en önemli manevi merkezlerinden biridir ve birçok ünlü evliya türbesi barındırmaktadır. Bazı önemli Bursa evliyaları şunlardır:
+
+1. Yeşil Türbe (Yeşil Cami) - İznik'ten Bursa'ya yerleşen Muhammed Çelebi'nin türbesi bulunmaktadır. Yeşil Türbe'nin mimarisi ve süslemeleri Osmanlı sanatının en güzel örneklerindendir.
+
+2. Şeyh Edebali Türbesi - Osmanlı Devleti'nin kurucusu Osman Gazi'nin hocası ve danışmanı olan Şeyh Edebali'nin türbesi Mudanya'da bulunmaktadır.
+
+3. Emir Sultan Camii ve Türbesi - 15. yüzyılda yaşamış Emir Sultan'ın türbesi Bursa'nın manevi merkezlerinden biridir. Cami ve türbe kompleksi Osmanlı mimarisinin önemli örneklerindendir.
+
+4. Muradiye Külliyesi - II. Murat döneminde inşa edilmiş külliye içerisinde birçok Osmanlı padişahının türbesi bulunmaktadır.
+
+5. Arap Camii ve Türbesi - Hz. Muhammed'in torunu Hüseyin'in soyundan gelen Arap Baba'nın türbesi barındıran külliye kompleksi.
+
+Bu evliya türbeleri, Bursa'nın manevi geçmişini ve Osmanlı kültürünü yansıtan önemli yapılardır. Ziyaretçiler buralarda dua edebilir, ibadet edebilir ve tarihi atmosferi hissedebilirler."
+2026-06-28 16:33:20;Deneme1;5. Claude 3 Haiku - (UYGUN FİYATLI / Şimşek Hızında);yemek olarak ne yenmeli;"Bursa'da yemeniz gereken lezzetli yemekler:
+
+1. İskender Kebabı: Dünyanın en meşhur kebap türlerinden biri olan İskender Kebabı, Bursa'nın en önemli yemek kültürlerinden biridir. Pirpirim ekmeği üzerinde ince dilimlenmiş döner eti, yoğurt ve tereyağlı domatesli sosu ile servis edilir.
+
+2. Kebap: Bursa, Türkiye'nin en önemli kebap merkezlerinden biridir. Özellikle odun ateşinde pişirilen Bursa Kebabı, Kebapçı Mustafa, Kebapçı Ömer gibi ünlü mekanlarda tatmanızı tavsiye ederim.
+
+3. Çiğ Köfte: Geleneksel Bursa usulü çiğ köfte, harika bir lezzettir. Et, bulgur ve baharatların özenle harmanlandığı bu lezzetin tadına bakmadan Bursa'dan ayrılmayın.
+
+4. Künefe: Bursa'nın vazgeçilmez tatlılarından olan künefe, ince yufka hamuru üzerinde peynir ve şerbeti ile lezzetli bir deneyim sunar.
+
+5. Karacabey Lahana Sarması: Bursa yöresiniin geleneksel yemeklerinden biri olan lahana sarma, içinde kıyma, pirinç, soğan ve baharatların yer aldığı enfes bir lezettir.
+
+Bursa'yı ziyaret ediyorsanız, yukarıdaki lezzetli yöresel yemekleri denemenizi şiddetle tavsiye ederim. Keyifli bir yemek deneyimi geçirmenizi dilerim."
+2026-06-28 16:34:40;Deneme1;5. Claude 3 Haiku - (UYGUN FİYATLI / Şimşek Hızında);kebbçı mustafa nerde;"Kebapçı Mustafa, Bursa'nın önemli ve geleneksel kebap restoranlarından biridir. Bursa'nın tarihi merkezinde, Atatürk Caddesi üzerinde faaliyet göstermektedir.
+
+Kebapçı Mustafa, 1940'lı yıllardan beri Bursa mutfağının en meşhur dürüm kebabını ve çeşitli izgara kebaplarını sunmaktadır. Restoranın fırınında odun ateşiyle pişirilen Bursa kebabı, lezzetiyle bilinen ve şehir kültürünün önemli bir parçasıdır.
+
+Kebapçı Mustafa, Bursa'ya gelen yerli ve yabancı turistlerin de sıklıkla uğradıkları bilinen bir mekandır. Restoranın karakteristik mimarisi ve nostalojik atmosferi de ziyaretçiler tarafından beğenilmektedir.
+
+Bursa'nın en eski ve meşhur kebapçılarından biri olan Kebapçı Mustafa, şehrin merkezinde, Atatürk Caddesi'nde, Ulu Cami'ye yakın bir konumda hizmet vermektedir."
+2026-06-28 16:40:23;Denemee1;4. Llama 3 8B (Acil Durum Ücretsiz Yedek Motor);bursa;"[SİSTEM UYARISI] OpenRouter İsteği Reddetti (Kod: 404)
+Sunucu Diyor ki: {""error"":{""message"":""This model is unavailable for free. The paid version is available now - use this slug instead: meta-llama/llama-3-8b-instruct"",""code"":404},""user_id"":""user_3Citbgxhu0aWN8Yhw2Fu2OhurjL""}"
+2026-06-28 16:40:43;Denemee1;1. OpenAI GPT-4o Mini (Ana Motor / Yüksek Zeka);bursa;"Bursa, Türkiye'nin Marmara Bölgesi'nde bulunan ve tarihi, kültürel ve doğal güzellikleriyle ünlü bir şehirdir. Osmanlı İmparatorluğu'nun ilk başkenti olan Bursa, bu nedenle zengin bir tarihe ve kültürel mirasa sahiptir. İşte Bursa hakkında bazı önemli bilgiler:
+
+### Tarihi ve Kültürel Miras
+1. **Osmanlı İmparatorluğu'nun Başkenti**: Bursa, 1299-1326 yılları arasında Osmanlı İmparatorluğu'nun başkenti olmuştur. Bu dönemde birçok cami, medrese, han ve hamam inşa edilmiştir.
+   
+2. **Yeşil Türbe**: Osmanlı padişahı Çelebi Mehmet'in türbesidir. Yeşil Camii ile birlikte şehrin simgelerinden biri haline gelmiştir. Mimari detayları ve çinileri büyük ilgi görmektedir.
+
+3. **Ulu Camii**: Bursa'nın en büyük camisi olan Ulu Camii, 1396-1400 yılları arasında inşa edilmiştir. Selçuklu ve Osmanlı mimarisinin güzel bir örneğidir.
+
+4. **Tarihî Kaplıcalar**: Bursa, kaplıcalarıyla da ünlüdür. Çekirge bölgesindeki kaplıcalar, romatizma, cilt hastalıkları gibi birçok rahatsızlığa iyi geldiği düşünülen mineralli sulara sahiptir.
+
+### Doğal Güzellikler
+1. **Uludağ**: Türkiye'nin en yüksek dağlarından biri olan Uludağ, kış sporları için popüler bir merkezdir. Özellikle kayak ve dağcılık meraklıları için birçok aktivite imkanı sunmaktadır.
+
+2. **Botanik Park**: Bursa'nın doğa ile iç içe olan birçok yeşil alanı bulunmaktadır. Botanik Park, şehrin içinde huzur bulmak isteyenler için güzel bir seçenek sunar.
+
+### Gastronomi
+1. **İskender Kebap**: Bursa'nın en bilinen yemeklerinden biridir. Döner etinin, özel sos ve yoğurt ile servis edildiği lezzetli bir yemektir.
+
+2. **Kestane Şekeri**: Bursa'nın bir diğer meşhur yiyeceği olan kestane şekeri, özellikle hediyelik olarak tercih edilmektedir.
+
+3. **Bursa Böreği**: İnce hamurun içine kıyma veya peynir konarak yapılan bu börek, yerel halkın severek yediği bir diğer lezzettir.
+
+### Festivaller ve Etkinlikler
+Bursa, yıl boyunca farklı festivallere ev sahipliği yapar. Özellikle Uluslararası Bursa Festivali, sanat ve kültür alanında önemli etkinlikler sunar.
+
+### Alışveriş
+Bursa, özellikle İskender Kebabı'nın ve kestane şekerinin yanı sıra, yerel el sanatları ve geleneksel ürünlerin satıldığı çarşılara sahiptir. Kapalı Çarşı, buradaki alışverişin kalbinin attığı yerlerden biridir.
+
+Bursa, hem tarihi hem de doğal güzellikleriyle ziyaretçilerine benzersiz bir deneyim sunmaktadır. Şehirdeki her köşe, Osmanlı dönemine ait izler taşırken, aynı zamanda modern yaşamın izlerini de barındırmaktadır. Herkese keyifli bir Bursa ziyareti diliyorum!"
+2026-06-28 16:41:15;Denemee1;2. Claude 3 Haiku (Ana Motor / Şimşek Hızında);bursa;"Bursa, Türkiye'nin Marmara Bölgesi'nde yer alan tarih ve doğal güzellikleriyle ön plana çıkan önemli bir şehirdir. Aşağıda Bursa hakkında detaylı bilgiler bulabilirsiniz:
+
+Genel Bilgiler:
+- Bursa, Türkiye'nin dördüncü büyük şehri olup, Marmara Denizi'nin güneybatısında konumlanır.
+- Şehir, Uludağ Dağı'nın eteklerinde kurulmuş olup, bu sayede hem doğal güzelliklere hem de tarihi dokuya sahiptir.
+- Bursa, ""Yeşil Bursa"" ve ""Osmanlı'nın Doğuşu"" gibi lakaplarıyla da bilinir.
+
+Tarihçe:
+- Bursa, MÖ 6. yüzyılda Bithynialılar tarafından kurulmuş ve daha sonra sırasıyla Persler, Romalılar, Bizanslılar ve Osmanlılar tarafından yönetilmiştir.
+- Osmanlı Devleti'nin ilk başkenti olan Bursa, 1326-1365 yılları arasında Osmanlı Devleti'nin başkenti olmuştur.
+- Ulu Cami, Yeşil Cami, Yeşil Türbe, Muradiye Külliyesi gibi önemli Osmanlı yapıları Bursa'nın tarihsel kimliğini yansıtmaktadır.
+
+Doğal Güzellikleri:
+- Uludağ, Bursa'nın sembolü olan ve kış turizminin merkezi olan bir dağdır. Yaz aylarında da doğa yürüyüşleri ve sportif aktiviteler için ziyaret edilir.
+- Bursa'nın termal kaynakları ise şehre sağlık turizmi açısından önemli bir katkı sağlamaktadır.
+- Cumalıkızık, Apolyont Gölü, Gölyazı Antik Kenti gibi diğer doğal güzellikleri de görülmeye değer yerlerdir.
+
+Gastronomi:
+- Bursa, Türk mutfağının en önemli merkezi konumundadır. İskender Kebabı, Bursa Köfte, İnegöl Köfte gibi ünlü yemekleriyle tanınır.
+- Şehrin kendine özgü tatlıları arasında Keşkül, Muhallebi, İncir Tatlısı gibi lezzetler yer alır.
+
+İnanç Turizmi:
+- Bursa, Osmanlı Dönemi'nden kalma pek çok cami, türbe ve külliye barındırması nedeniyle inanç turizmi açısından da önemli bir merkez konumundadır."
+2026-06-28 16:41:49;Denemee1;3. Google Gemini Flash (Ana Motor / Dinamik);bursa nasıl bir yer;"[SİSTEM UYARISI] OpenRouter İsteği Reddetti (Kod: 400)
+Sunucu Diyor ki: {""error"":{""message"":""google/gemini-1.5-flash is not a valid model ID"",""code"":400},""user_id"":""user_3Citbgxhu0aWN8Yhw2Fu2OhurjL""}"
+2026-06-28 17:15:10;Deneme2;1. OpenAI GPT-4o Mini (Ana Motor / Yüksek Zeka);Nilüfer Doğanköy'deki 16.500 metrekarelik ortak arazinin belediye sistemindeki takip kodu nedir?;"Nilüfer Doğanköy'deki 16.500 metrekarelik ortak arazinin belediye sistemindeki takip kodu ""Proje-V5-Gizli""dir."
+2026-06-29 15:16:01;Eren;4. Llama 3 8B (Acil Durum Ücretsiz Yedek Motor);bursa;"[SİSTEM UYARISI] OpenRouter İsteği Reddetti (Kod: 404)
+Sunucu Diyor ki: {""error"":{""message"":""This model is unavailable for free. The paid version is available now - use this slug instead: meta-llama/llama-3-8b-instruct"",""code"":404},""user_id"":""user_3Citbgxhu0aWN8Yhw2Fu2OhurjL""}"
+2026-06-29 15:17:34;Eren;1. OpenAI GPT-4o Mini (Ana Motor / Yüksek Zeka);o zaman 3;"Bursa'nın gastronomisi oldukça zengin ve lezzetlidir. İşte Bursa'da mutlaka denemeniz gereken bazı yemekler:
+
+1. **İskender Kebap**: 1867 yılında Mehmetoğlu İskender Efendi tarafından Kayhan Çarşısı'nda icat edilmiştir. Kuzu etinin kemik ve sinirlerden arındırılıp dikey çubuğa dizilmesiyle yapılır. Altında tırnak pide, üstünde özel domates sosu, yanında yoğurt ve üzerine dökülen kızgın koyun tereyağı ile servis edilir. Yanında şıra içilmesi adettir.
+
+2. **Pideli Köfte**: İskender kebabın ""döner"" yerine ""köfte"" ile yapılan versiyonudur. Özellikle Kayhan Çarşısı'ndaki dükkanlarda yenmesi tavsiye edilir.
+
+3. **Cantık**: Tatarlardan Bursa mutfağına geçmiş, ortası çukur, kenarları kalın ve yumuşak hamurlu, kıymalı veya kuşbaşılı küçük pidedir. Bursa'da düğün ve cemiyetlerin vazgeçilmez ikramıdır.
+
+4. **Tatlılar**: Bursa'da özellikle Kestane Şekeri (Uludağ kestanelerinden yapılır), Tahinli Pide (Bursalıların 'tahanlı' dediği, kahvaltılarda çayla tüketilen tatlı pide) ve Kemalpaşa Tatlısı (Mustafakemalpaşa ilçesine özgü peynirli tatlı) oldukça meşhurdur.
+
+Bursa'yı ziyaret ettiğinizde bu lezzetleri tatmayı unutmayın!"
+2026-06-29 15:18:19;Eren;1. OpenAI GPT-4o Mini (Ana Motor / Yüksek Zeka);kemal paşa nerde yenir;Kemalpaşa Tatlısı, Bursa'nın Mustafakemalpaşa ilçesine özgü bir tatlıdır. Bursa merkezde birçok tatlıcıda Kemalpaşa Tatlısı bulabilirsiniz. Özellikle yerel tatlıcıları tercih ederek bu lezzeti deneyimleyebilirsiniz.
+2026-06-29 15:18:40;Eren;1. OpenAI GPT-4o Mini (Ana Motor / Yüksek Zeka);örnek ver;Elbette, Bursa hakkında merak ettiğiniz bir konu veya örnek ile ilgili olarak daha fazla bilgi verebilirim. Hangi konuda örnek arıyorsunuz? Tarihi yapılar, doğal güzellikler veya gastronomi gibi belirli bir alan var mı?
+2026-06-29 15:19:18;Eren;1. OpenAI GPT-4o Mini (Ana Motor / Yüksek Zeka);onu demiyorum mekan önerisi soruyorum anlamıyor musun......;Bursa'da mekan önerisi olarak özellikle Kayhan Çarşısı'nda bulunan İskender Kebap restoranlarını tavsiye ederim. Burada ünlü İskender Kebap'ı ve Pideli Köfte'yi deneyebilirsiniz. Ayrıca, Bursa'nın yerel tatlarından olan Cantık'ı, kahvaltılarda ise Tahinli Pide'yi (Bursalıların 'tahanlı' dediği) tüketmenizi öneririm. Bu mekanlar hem lezzetli yemekleriyle hem de Bursa’nın geleneksel atmosferiyle dikkat çekmektedir.
+2026-06-29 15:20:16;Eren;1. OpenAI GPT-4o Mini (Ana Motor / Yüksek Zeka);bunlar lezzet önerisi mekan değil nerde yiyebilceğimi soruyorum!!!!!!!!!!!!!!;"Bursa'da çeşitli lezzetleri deneyebileceğiniz mekanlar hakkında bilgi vereyim:
+
+- **İskender Kebap**: İskender kebap, özellikle Kayhan Çarşısı'ndaki dükkanlarda tatmanızı öneririm.
+  
+- **Pideli Köfte**: Bu lezzet de yine Kayhan Çarşısı'ndaki restoranlarda keyifle yenebilir.
+
+- **Cantık**: Bursa'da düğün ve cemiyetlerde sıkça sunulan bu lezzeti yerel restoranlarda bulabilirsiniz.
+
+Tatlı seçenekleri için ise, Bursa'da çeşitli pastanelerde Kestane Şekeri, Tahinli Pide ve Kemalpaşa Tatlısı tadabilirsiniz. 
+
+Her biri için özel mekan önerileri için yerel halktan veya turistik bilgi noktalarından yardım alabilirsiniz. Afiyet olsun!"
+2026-06-29 15:21:14;Eren;1. OpenAI GPT-4o Mini (Ana Motor / Yüksek Zeka);anladımmmmmmmmmm;Harika! Bursa hakkında herhangi bir sorunuz veya merak ettiğiniz bir konu varsa, size yardımcı olmaktan memnuniyet duyarım.
+2026-06-29 15:21:33;Eren;1. OpenAI GPT-4o Mini (Ana Motor / Yüksek Zeka);bursa yüzölçümü ne kadar;Üzgünüm, ancak Bursa'nın yüzölçümü hakkında bilgim yok. Bursa ile ilgili başka bir konuda yardımcı olabilir miyim? Örneğin, tarihi ve kültürel yerler, doğal güzellikler veya gastronomi hakkında bilgi verebilirim.
+2026-06-29 15:22:05;Eren;1. OpenAI GPT-4o Mini (Ana Motor / Yüksek Zeka);bilirsin söyle söyle yüzölçüm kaç;Üzgünüm, ancak Bursa'nın yüzölçümü hakkında bilgi veremiyorum. Fakat Bursa ile ilgili tarihi, kültürel yerler, doğal güzellikler ve gastronomi gibi konularda yardımcı olabilirim. Başka bir sorunuz varsa sormaktan çekinmeyin!
+2026-06-29 15:23:17;Eren;1. OpenAI GPT-4o Mini (Ana Motor / Yüksek Zeka);kaynakçan ne bu bilgilerde;Üzgünüm, ancak paylaştığım bilgiler Bursa Kataloğu'na dayanmaktadır ve bu katalogda yer alan bilgiler doğrultusunda rehberlik yapıyorum. Başka bir sorunuz varsa, yardımcı olmaktan memnuniyet duyarım.
+2026-06-29 15:25:21;Eren;2. Claude 3 Haiku (Ana Motor / Şimşek Hızında);bursa yüzölçümü ne kadar;Bursa şehri hakkındaki bilgilere göre, Bursa'nın yüzölçümü ile ilgili bir bilgiye rastlamadım. Bursa Kataloğunda böyle bir bilgi yer almamaktadır.
+2026-06-29 15:25:57;Eren;2. Claude 3 Haiku (Ana Motor / Şimşek Hızında);bursanın nifüsü kaçtır;Bursa'nın nüfusu hakkında bilgi Bursa Kataloğu'nda yer almamaktadır. Bursa, Türkiye'nin en kalabalık dördüncü şehridir. Son resmi verilere göre Bursa'nın nüfusu yaklaşık 3 milyon kişidir. Şehir merkezi ve çevre ilçeleriyle beraber toplam nüfusu 3 milyona ulaşmaktadır. Hızlı gelişen sanayisi ve ekonomisiyle Bursa, Türkiye'nin önemli metropollerinden biri konumundadır.
+2026-06-29 15:34:01;Eren;1. OpenAI GPT-4o Mini ;bursada kaç göl var;Bursa'nın içinde yer alan çeşitli göller bulunmaktadır. Ancak özellikle belirtmek gerekirse, Uluabat Gölü (eski adıyla Apollonia) şehrin en bilinen göllerinden biridir ve Gölyazı köyü bu gölün kenarında yer almaktadır. Bunun dışında, Bursa çevresinde başka küçük göletler ve su kaynakları da bulunmaktadır, ancak tam olarak kaç göl olduğu konusunda net bir sayı vermek zordur. Eğer doğa ile iç içe bir zaman geçirmek isterseniz, Uluabat Gölü'nü ziyaret etmenizi öneririm.
+2026-06-29 15:34:36;Eren;1. OpenAI GPT-4o Mini ;ortalama sayı;"Merhaba! ""Ortalama sayı"" ile neyi kastettiğinizi biraz daha açar mısınız? Örneğin, matematiksel bir kavram olan ortalama hesaplaması mı, yoksa bir konu üzerindeki ortalama değerlere mi detay vermemi istersiniz? Size en iyi şekilde yardımcı olabilmem için biraz daha bilgiye ihtiyacım var. Teşekkür ederim!"
+2026-06-29 15:34:57;Eren;1. OpenAI GPT-4o Mini ;istanbul nifüsü kaç;Üzgünüm, ancak Bursa Kataloğu'nda İstanbul'un nüfusu hakkında herhangi bir bilgi bulunmamaktadır. Ancak genel bilgi vermek gerekirse, İstanbul, Türkiye'nin en kalabalık şehri olup, 2023 itibarıyla nüfusu yaklaşık 15 milyon civarındadır. Bu rakam zamanla değişebilir, bu nedenle güncel verilere resmi kaynaklardan ulaşmanız tavsiye edilir. Başka bir şey sormak isterseniz, yardımcı olmaktan memnuniyet duyarım!
+2026-06-29 15:35:24;Eren;1. OpenAI GPT-4o Mini ;istanbul hakkında bilgi verirmşsşn;"Üzgünüm, İstanbul hakkında doğrudan bilgi veremem; ancak Bursa ile ilgili detaylar sağlayabilirim. Bursa, Osmanlı İmparatorluğu'nun ilk başkenti olarak önemli bir tarihi ve kültürel mirasa sahiptir. Ulu Cami, Yeşil Türbe, Tophane ve Koza Han gibi önemli yapıları ile tanınır. Ayrıca, doğal güzellikleri ve gastronomi zenginlikleriyle de dikkat çeker. Bursa'da İskender Kebap, Pideli Köfte ve Tahinli Pide gibi lezzetler oldukça meşhurdur. Başka bir konuda yardımcı olabilirsem lütfen belirtin!"
+2026-06-29 15:35:58;Eren;1. OpenAI GPT-4o Mini ;bursada uludağa nasıl gidebiliirm;"Bursa'dan Uludağ'a gitmek için birkaç farklı ulaşım seçeneği bulunmaktadır:
+
+1. **Teleferik**: Bursa'nın Teferrüç İstasyonu'ndan başlayarak, Uludağ Oteller Bölgesi'ne kadar giden teleferiği kullanabilirsiniz. Bu, yaklaşık 9 kilometre uzunluğuyla dünyanın en uzun aktarmasız teleferik hatlarından biridir ve güzel manzaralar eşliğinde seyahat imkanı sunar.
+
+2. **Araçla**: Kendi aracınızla veya kiralık bir araçla Uludağ'a gitmek için Bursa'dan Uludağ'a giden yolları kullanabilirsiniz. Bu güzergah, doğanın tadını çıkararak keyifli bir yolculuk yapmanıza olanak tanır.
+
+3. **Otobüs**: Bursa şehir merkezinden Uludağ'a giden otobüs seferlerini de tercih edebilirsiniz. Bu otobüsler, genellikle kış sezonunda daha sık çalışmaktadır.
+
+Bu seçeneklerden birini seçerek Uludağ'a ulaşabilirsiniz. Unutmayın ki kış aylarında kar koşulları nedeniyle ulaşımda değişiklikler olabilir. Keyifli bir yolculuk dilerim!"
+2026-06-29 15:37:01;Eren;1. OpenAI GPT-4o Mini ;bursada iskenderde ne var içi de;"İskender kebap, Bursa'nın en ünlü lezzetlerinden biridir. İskender kebap, 1867 yılında Mehmetoğlu İskender Efendi tarafından Kayhan Çarşısı'nda icat edilmiştir. 
+
+Yapımında, kuzu etinin kemik ve sinirlerden arındırılarak özel bir dikey çubuğa dizilmesiyla hazırlanan döner eti kullanılır. İskender kebap, altına konulan tırnak pide, üstüne dökülen özel domates sosu, yanında yoğurt ve üzerine dökülen kızgın koyun tereyağı ile servis edilir. Ayrıca, genellikle yanında şıra içilmesi de adettir. 
+
+Kısacası, İskender kebap, hem lezzetiyle hem de sunumuyla damakları şenlendiren bir yemektir!"
+2026-06-29 15:39:52;Eren;3. Google Gemini Flash ;bursas;"[SİSTEM UYARISI] OpenRouter İsteği Reddetti (Kod: 400)
+Sunucu Diyor ki: {""error"":{""message"":""google/gemini-1.5-flash is not a valid model ID"",""code"":400},""user_id"":""user_3Citbgxhu0aWN8Yhw2Fu2OhurjL""}"
+2026-06-29 15:44:27;Eren;2. Google Gemini Pro 1.5 ;bursa;"[SİSTEM UYARISI] OpenRouter İsteği Reddetti (Kod: 404)
+Sunucu Diyor ki: {""error"":{""message"":""No endpoints found for google/gemini-pro-1.5."",""code"":404},""user_id"":""user_3Citbgxhu0aWN8Yhw2Fu2OhurjL""}"
+2026-06-29 15:47:43;Eren;3. Google Gemini Pro ;bursa;"[SİSTEM UYARISI] OpenRouter İsteği Reddetti (Kod: 400)
+Sunucu Diyor ki: {""error"":{""message"":""google/gemini-pro is not a valid model ID"",""code"":400},""user_id"":""user_3Citbgxhu0aWN8Yhw2Fu2OhurjL""}"
+2026-06-29 15:51:15;Eren;3.Google Gemini 2.5 Flash ;bursa;"[SİSTEM UYARISI] OpenRouter İsteği Reddetti (Kod: 402)
+Sunucu Diyor ki: {""error"":{""message"":""This request requires more credits, or fewer max_tokens. You requested up to 65535 tokens, but can only afford 14916. To increase, visit https://openrouter.ai/settings/credits and upgrade to a paid account"",""code"":402,""metadata"":{""provider_name"":null,""previous_errors"":[{""code"":402,""message"":""This request requires more credits, or fewer max_tokens. You requested up to 65535 tokens, but can only afford 14916. To increase, visit https://openrouter.ai/settings/credits and upgrade to a paid account""},{""code"":402,""message"":""This request requires more credits, or fewer max_tokens. You requested up to 65535 tokens, but can only afford 14916. To increase, visit https://openrouter.ai/settings/credits and upgrade to a paid account""},{""code"":402,""message"":""This request requires more credits, or fewer max_tokens. You requested up to 65535 tokens, but can only afford 14916. To increase, visit https://openrouter.ai/settings/credits and upgrade to a paid account""}]}},""user_id"":""user_3Citbgxhu0aWN8Yhw2Fu2OhurjL""}"
+2026-06-29 15:55:35;Eren;3.Google Gemini 2.5 Flash ;bursa;"Merhaba! Bursa, tarihi ve doğal güzellikleriyle dolu, yaşanması ve keşfedilmesi gereken harika bir şehir. Sizin için Bursa hakkında neler öğrenmek istersiniz?
+
+Size yardımcı olabilmek adına, Bursa'nın belli başlı özellikleri hakkında kısa bir bilgi verebilirim:
+
+*   **Tarihi ve Kültürel Miras:** Osmanlı İmparatorluğu'na başkentlik yapmış olan Bursa, birçok cami, türbe, han ve çarşıya ev sahipliği yapmaktadır. **Ulu Cami**, **Yeşil Türbe ve Yeşil Cami**, **Osman Gazi ve Orhan Gazi Türbeleri** ve **Koza Han** gibi önemli yapılar bu mirasın somut örnekleridir.
+*   **Doğal Güzellikler:** Şehir, yemyeşil doğası ve Uludağ gibi önemli coğrafi yapılarıyla da öne çıkar. **Cumalıkızık (UNESCO Dünya Mirası Köyü)**, **Gölyazı (Uluabat Gölü)** ve **Tirilye (Zeytinbağı)** gibi çevre ilçeler de doğal güzellikleriyle ziyaretçilerini cezbeder.
+*   **Gastronomi:** Bursa demek, lezzet demek! Meşhur **İskender Kebap**'ın yanı sıra, **Pideli Köfte**, **Cantık**, **Kestane Şekeri**, **Tahinli Pide** ve **Kemalpaşa Tatlısı** gibi birçok yöresel lezzet sunar.
+
+Bursa hakkında daha spesifik olarak ne sormak istersiniz? Örneğin, gezilecek yerler, yeme içme mekanları, ulaşım veya tarihi detaylar hakkında bilgi verebilirim."
+2026-06-29 15:56:59;Eren;3.Google Gemini 2.5 Flash ;bursanın nifüsü kaç;"Maalesef Bursa Kataloğu'nda şehir nüfusu hakkında bilgi bulunmamaktadır. Ancak genel kültür bilgilerime göre Bursa'nın güncel nüfusu yaklaşık olarak 3,2 milyon civarındadır. Bu sayı, Türkiye'nin en büyük dördüncü şehri konumuna getirmektedir.
+
+Bursa'nın nüfusu, Türkiye İstatistik Kurumu (TÜİK) tarafından düzenli olarak açıklanmaktadır. En doğru ve güncel bilgiye ulaşmak için TÜİK web sitesini ziyaret edebilirsiniz."
+2026-06-29 15:57:35;Eren;3.Google Gemini 2.5 Flash ;iskenderin içinde ne var;İskender kebap, döner eti, tırnak pide, özel domates sosu, tereyağı ve yoğurt içerir. Genellikle yanında şıra ile servis edilir.
+2026-06-29 15:57:53;Eren;3.Google Gemini 2.5 Flash ;istanbuk nidüsü;"İstanbul'dan Bursa'ya gidebileceğiniz iki ana deniz yolu seçeneği bulunmaktadır:
+
+1.  **İDO (İstanbul Deniz Otobüsleri):** İDO seferleri ile Bursa'da Güzelyalı İskelesi'ne ulaşabilirsiniz.
+2.  **BUDO (Bursa Deniz Otobüsleri):** BUDO seferleri ise Mudanya İskelesi'ne yanaşmaktadır.
+
+Her iki seçenek de İstanbul'dan Bursa'ya deniz yoluyla konforlu bir ulaşım imkanı sunar. Seçiminizi kalkış noktanıza ve Bursa'da inmek istediğiniz iskeleye göre yapabilirsiniz."
+2026-06-29 15:58:30;Eren;3.Google Gemini 2.5 Flash ;yok istanbulun nifüsü kaç;"Merhaba! Bursa hakkında size yardımcı olmaktan mutluluk duyarım. Ancak İstanbul'un nüfusu Bursa Kataloğu'nda yer almıyor.
+
+Genel kültür bilgilerime göre, İstanbul'un nüfusu oldukça fazladır ve çeşitli kaynaklara göre farklılık gösterebilir. Genellikle 15 milyonun üzerinde bir nüfustan bahsedilir, ancak en güncel ve kesin bilgi için Türkiye İstatistik Kurumu (TÜİK) verilerine bakılması en doğrusudur.
+
+Bursa ile ilgili başka bir sorunuz olursa lütfen çekinmeden sorun!"
+2026-06-29 15:58:48;Eren;3.Google Gemini 2.5 Flash ;istanbul hakkında bilgi veririmisin;"Merhaba! Ben bir dijital turizm rehberiyim ve uzmanlık alanım Bursa şehri. Bursa hakkında size detaylı ve kültürel bilgiler verebilirim. Maalesef, İstanbul hakkında size şu an katalog bilgimle yardımcı olamıyorum. 
+
+Ancak, İstanbul hakkında genel bilgiler isterseniz, dünya tarihinde önemli bir yeri olan, birçok medeniyete ev sahipliği yapmış, doğal güzellikleri ve tarihi yapılarıyla ünlü bir metropol olduğunu söyleyebilirim. Boğazı, Ayasofya'sı, Topkapı Sarayı, Sultanahmet Camii gibi birçok görülecek yere sahiptir.
+
+Eğer Bursa ile ilgili bir sorunuz olursa, seve seve yanıtlamak isterim! Örneğin, Bursa'nın tarihi mekanlarını, doğal güzelliklerini veya lezzetlerini merak ediyorsanız, sormanız yeterli."
