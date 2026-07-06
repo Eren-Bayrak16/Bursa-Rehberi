@@ -18,9 +18,7 @@ def save_database(data):
         json.dump(data, file, ensure_ascii=False, indent=4)
 
 def welcome_and_consent():
-    print("="*50)
-    print("      BURSA DİJİTAL REHBERİ'NE HOŞ GELDİNİZ")
-    print("="*50)
+    print("BURSA DİJİTAL REHBERİ'NE HOŞ GELDİNİZ\n")
     
     while True:
         username = input("Lütfen kullanıcı adınızı giriniz: ").strip()
