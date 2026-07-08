@@ -5,7 +5,7 @@ from datetime import datetime
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_FILE = os.path.join(BASE_DIR, "user_database.json")
-CONFIG_FILE = os.path.join(BASE_DIR,"config" "sistem_ayarlari.json")
+CONFIG_FILE = os.path.join(BASE_DIR,"config", "sistem_ayarlari.json")
 
 def load_database():
     if os.path.exists(DB_FILE):
