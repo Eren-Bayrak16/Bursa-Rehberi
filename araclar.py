@@ -3,6 +3,7 @@ import csv
 import requests
 import PyPDF2
 from datetime import datetime
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 def aktif_internet_kontrolü():
     """Sistem internete ihtiyaç duyduğu anlarda anlık kontrol yapar."""
@@ -31,7 +32,7 @@ def save_chat_log(username, model_name, user_msg, ai_msg):
         writer.writerow([zaman, username, model_name, user_msg, ai_msg])
 
 def read_bursa_pdf():
-    pdf_yolu = "bursa_katalog.pdf"
+    pdf_yolu = os.path.join(BASE_DIR, "docs", "bursa_katalog.pdf")
     pdf_metni = ""
     
     if os.path.exists(pdf_yolu):
