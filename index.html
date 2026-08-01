@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bursa Şehir Rehberi</title>
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f8f9fa; color: #343a40; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
+        .container { background-color: #ffffff; padding: 40px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); max-width: 500px; width: 100%; text-align: center; }
+        h1 { color: #0056b3; margin-top: 0;}
+        p { font-size: 1.1em; color: #6c757d; margin-bottom: 10px; }
+        .status { font-weight: bold; color: #28a745; margin-top: 10px; margin-bottom: 25px; font-size: 15px; }
+
+        .btn { display: block; padding: 12px; margin: 10px 0; background-color: #ffffff; color: #333; text-decoration: none; border: 1px solid #ddd; border-radius: 5px; font-weight: 600; transition: 0.2s; }
+        .btn:hover { background-color: #e9ecef; }
+
+        #login-screen { display: block; }
+        #app-screen { display: none; }
+
+        .google-btn-container {
+            display: flex;
+            justify-content: center;
+            margin-top: 30px;
+        }
+
+        .llm-section { margin-top: 35px; padding-top: 25px; border-top: 1px solid #eee; text-align: left; }
+        .llm-title { font-weight: bold; color: #333; margin-bottom: 10px; display: block; }
+        .llm-input { width: calc(100% - 24px); padding: 10px; border: 1px solid #ccc; border-radius: 5px; margin-bottom: 10px; font-size: 14px; }
+        .llm-submit { background-color: #0056b3; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-weight: bold; width: 100%; }
+        .llm-submit:hover { background-color: #004494; }
+        .llm-response { margin-top: 15px; padding: 15px; background-color: #e9ecef; border-radius: 5px; display: none; font-size: 14px; color: #333; line-height: 1.5; }
+    </style>
+</head>
+<body>
+
+    <div id="login-screen" class="container">
+        <h1>Sisteme Giriş</h1>
+        <p>Devam etmek için Google hesabınızla giriş yapın.</p>
+
+        <div class="google-btn-container">
+            <div id="g_id_onload"
+                 data-client_id="3228179223-s8utg445qlivq1d4rp9c02c1t8gcbc6p.apps.googleusercontent.com"
+                 data-callback="handleCredentialResponse">
+            </div>
+            <div class="g_id_signin"
+                 data-type="standard"
+                 data-shape="rectangular"
+                 data-theme="outline"
+                 data-text="sign_in_with"
+                 data-size="large"
+                 data-logo_alignment="left">
+            </div>
+        </div>
+    </div>
+
+    <div id="app-screen" class="container">
+        <h1>Bursa Şehir Rehberi</h1>
+        <p>Şehir rehberine hoş geldiniz</p>
+        <p class="status">Bursa'da en çok kullanılan hizmetlere hızlı erişim</p>
+
+        <a href="https://www.beo.org.tr/" target="_blank" rel="noreferrer" class="btn">💊 Güncel Nöbetçi Eczaneler (Bursa Eczacı Odası)</a>
+        <a href="https://www.burulas.com.tr/" target="_blank" rel="noreferrer" class="btn">🚌 Otobüs ve Metro Sefer Saatleri (BURULAŞ)</a>
+        <a href="https://www.passo.com.tr/" target="_blank" rel="noreferrer" class="btn">⚽ Bursaspor Maç Biletleri (Passo)</a>
+
+        <div class="llm-section">
+            <span class="llm-title">🤖 Yapay Zeka Asistanı</span>
+            <input type="text" id="aiPrompt" class="llm-input" placeholder="Bursa ile ilgili bir şey yazın...">
+            <button class="llm-submit" onclick="yapayZekayaSor()">Gönder</button>
+
+            <div id="aiResponse" class="llm-response"></div>
+        </div>
+    </div>
+
+    <script>
+        function handleCredentialResponse(response) {
+            document.getElementById('login-screen').style.display = 'none';
+            document.getElementById('app-screen').style.display = 'block';
+        }
+
+        function yapayZekayaSor() {
+            const input = document.getElementById('aiParser') || document.getElementById('aiPrompt').value;
+            const responseBox = document.getElementById('aiResponse');
+
+            if(document.getElementById('aiPrompt').value.trim() === "") {
+                alert("Lütfen önce bir şey yazın.");
+                return;
+            }
+
+            responseBox.innerHTML = "<strong>Asistan Yanıtı:</strong> Girdiğiniz mesaj başarıyla alındı. Bu, yapay zeka entegrasyonu tamamlandığında dönecek olan örnek bir test cevaptır.";
+            responseBox.style.display = "block";
+            document.getElementById('aiPrompt').value = "";
+        }
+    </script>
+</body>
+</html>
