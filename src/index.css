@@ -1,0 +1,301 @@
+/* --- GENEL AYARLAR VE FONT --- */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+* {
+  font-family: 'Inter', sans-serif !important;
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background-color: #1a1a1a;
+}
+
+/* --- ANA EKRAN KAPSAYICISI --- */
+.hero-section {
+  width: 100%;
+  min-height: 100vh;
+  background-size: cover;
+  background-position: center;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  padding-left: 240px;
+}
+
+/* --- SOL ŞERİT (TAMAMEN ŞEFFAF CAM GİBİ) --- */
+.sidebar {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 220px;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.15); /* Neredeyse tamamen şeffaf, arkadaki manzara net görünür */
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 20px 12px;
+  display: flex;
+  flex-direction: column;
+  z-index: 100;
+}
+
+.sidebar-brand {
+  color: white;
+  font-size: 19px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 20px;
+  padding-left: 5px;
+}
+
+.sidebar-brand .logo-icon {
+  color: #4ade80;
+}
+
+.sidebar-section-title {
+  color: #94a3b8;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  margin-bottom: 8px;
+  padding-left: 5px;
+}
+
+.sidebar-menu {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sidebar-menu li a {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: #e2e8f0;
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 400;
+  padding: 6px 8px;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
+
+.sidebar-menu li a:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #4ade80;
+  transform: translateX(3px);
+}
+
+/* --- SOL ALT HAVA DURUMU KUTUSU --- */
+.sidebar-weather {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 12px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: auto;
+}
+
+.weather-title {
+  color: #94a3b8;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  padding-bottom: 3px;
+}
+
+.weather-item {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: #f1f5f9;
+  font-size: 11px;
+}
+
+/* --- ÜST SAĞ KÖŞE ÇIKIŞ --- */
+.top-navbar {
+  position: absolute;
+  right: 40px;
+  top: 20px;
+  z-index: 10;
+}
+
+.user-profile {
+  cursor: pointer;
+  color: white;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 500;
+  font-size: 14px;
+  background: rgba(255, 255, 255, 0.1);
+  padding: 8px 16px;
+  border-radius: 20px;
+  backdrop-filter: blur(10px);
+}
+
+/* --- ANA İÇERİK --- */
+.hero-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  width: 100%;
+  text-align: center;
+  z-index: 5;
+  padding: 20px;
+}
+
+.main-title {
+  color: white;
+  font-size: clamp(2rem, 5vw, 4rem); 
+  font-weight: 800;
+  letter-spacing: -2px;
+  line-height: 1.1;
+  text-shadow: 0 6px 25px rgba(0, 0, 0, 0.5);
+  margin-bottom: 10px;
+  text-transform: uppercase;
+}
+
+.main-subtitle {
+  font-size: clamp(0.9rem, 1.2vw, 1.2rem);
+  font-weight: 300;
+  color: #e2e8f0;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  margin-bottom: 30px;
+}
+
+/* --- BUTONLAR --- */
+.action-buttons {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 30px;
+}
+
+.btn {
+  padding: 12px 24px;
+  border-radius: 25px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: none;
+  transition: all 0.3s ease;
+}
+
+.btn-google {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(10px);
+}
+
+.btn-google:hover {
+  background-color: rgba(255, 255, 255, 0.2);
+}
+
+.btn-ai {
+  background: linear-gradient(135deg, #6366f1, #a855f7, #ec4899);
+  color: white;
+  box-shadow: 0 8px 20px rgba(168, 85, 247, 0.4);
+}
+
+.btn-ai:hover {
+  transform: translateY(-2px);
+  box-shadow: 12px 25px rgba(168, 85, 247, 0.6);
+}
+
+/* --- HİZMET KARTLARI --- */
+.services-grid {
+  display: flex;
+  gap: 15px;
+  margin-top: 10px;
+  margin-bottom: 30px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.service-card {
+  background: rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 20px;
+  border-radius: 20px;
+  width: 210px;
+  text-decoration: none;
+  color: white;
+  transition: all 0.3s ease;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.service-card:hover {
+  background: rgba(255, 255, 255, 0.08);
+  transform: scale(1.03);
+  border-color: #22c55e;
+  box-shadow: 0 15px 30px rgba(34, 197, 94, 0.2);
+}
+
+.service-card:hover .icon {
+  color: #22c55e;
+  transform: scale(1.1);
+}
+
+.service-card .icon {
+  font-size: 26px;
+  margin-bottom: 12px;
+  color: #cbd5e1;
+  transition: all 0.3s ease;
+}
+
+.service-card h3 {
+  margin: 0 0 8px 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.service-card p {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 300;
+  color: #cbd5e1;
+  line-height: 1.4;
+}
+
+/* --- HAREKETLİ OK --- */
+.scroll-indicator {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  color: white;
+  margin-bottom: 20px;
+  font-size: 13px;
+}
+
+.arrow-icon {
+  animation: bounce 2s infinite;
+  margin-top: 3px;
+}
+
+@keyframes bounce {
+  0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+  40% { transform: translateY(-8px); }
+  60% { transform: translateY(-4px); }
+}
