@@ -1,15 +1,17 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useGoogleLogin } from '@react-oauth/google';
+import ReactMarkdown from 'react-markdown';
 import './App.css'
 import arkaplan from './assets/arkaplan.png'
 import { locationData } from './data/locationData';
 import { 
   FaPills, FaLandmark, FaBus, FaFutbol, FaMapMarkerAlt, FaGoogle, 
   FaRobot, FaUserCircle, FaSun, FaCloudSun, FaTree, FaMountain, 
-  FaWater, FaCity, FaTram, FaUtensils, FaStore, FaMosque, FaTheaterMasks, FaLeaf, FaPizzaSlice, FaShieldAlt, FaTimes, FaKey, FaCogs, FaInfoCircle, FaFilter, FaTrophy, FaBolt, FaSearch 
+  FaWater, FaCity, FaTram, FaUtensils, FaStore, FaMosque, FaTheaterMasks, FaLeaf, FaPizzaSlice, FaShieldAlt, FaTimes, FaKey, FaCogs, FaInfoCircle, FaFilter, FaTrophy, FaBolt, FaPlus, FaTrash, FaSearch, FaClock, FaCalendarAlt, FaCheckCircle, FaEdit, FaCoins 
 } from 'react-icons/fa'
 
 const ADMIN_EMAIL = "bayrakeren228@gmail.com";
+const API_BASE_URL = "http://172.16.12.253.nip.io:8000";
 
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -17,18 +19,94 @@ function App() {
   const [lang, setLang] = useState('TR');
   
   const [prompt, setPrompt] = useState('');
-  const [aiResponse, setAiResponse] = useState('');
+  const [chatHistory, setChatHistory] = useState([]);
   const [loading, setLoading] = useState(false);
+  
+  const [elapsedTime, setElapsedTime] = useState(0);
+  const [errorMessage, setErrorMessage] = useState('');
 
+  const [modelsList, setModelsList] = useState([]);
   const [selectedModel, setSelectedModel] = useState('google/gemini-2.5-flash');
   const [userApiKey, setUserApiKey] = useState('');
+  const [isApiKeySaved, setIsApiKeySaved] = useState(false);
+  const [showApiKeyModal, setShowApiKeyModal] = useState(false);
+  const [tempApiKeyInput, setTempApiKeyInput] = useState('');
+  const [apiKeyErrorMsg, setApiKeyErrorMsg] = useState('');
+  const [validatingKey, setValidatingKey] = useState(false);
 
   const [showAdminPanel, setShowAdminPanel] = useState(false);
+  const [adminTab, setAdminTab] = useState('stats');
   const [adminStats, setAdminStats] = useState(null);
-  const [selectedAdminUser, setSelectedAdminUser] = useState('ALL');
-  const [adminSearchQuery, setAdminSearchQuery] = useState('');
-  const [adminDateFilter, setAdminDateFilter] = useState('TODAY'); // TODAY, 7DAYS, 30DAYS, ALL
+  const [selectedUserFilter, setSelectedUserFilter] = useState('ALL');
+  const [adminDateFilter, setAdminDateFilter] = useState('TODAY');
   const [selectedLocation, setSelectedLocation] = useState(null);
+
+  const [adminPage, setAdminPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [selectedModalItem, setSelectedModalItem] = useState(null);
+  const [currentChatId, setCurrentChatId] = useState('');
+
+  const [openRouterModels, setOpenRouterModels] = useState([]);
+  const [modelSearchQuery, setModelSearchQuery] = useState('');
+  const [fetchingOpenRouter, setFetchingOpenRouter] = useState(false);
+
+  const [systemApiKeyInput, setSystemApiKeyInput] = useState('');
+  const [currentQuestion, setCurrentQuestion] = useState('');
+  const chatEndRef = useRef(null);
+
+  useEffect(() => {
+    fetchModels();
+    fetchOpenRouterCatalog();
+    setCurrentChatId(Math.random().toString(36).substring(2, 10));
+  }, []);
+
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [chatHistory, loading]);
+
+  const fetchModels = async () => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/models`);
+      const data = await res.json();
+      if (res.ok && data.models) {
+        setModelsList(data.models);
+        const selectableModels = data.models.filter(m => !m.is_default_free);
+        if (selectableModels.length > 0 && (!selectedModel || selectedModel === '')) {
+          setSelectedModel(selectableModels[0].model_key);
+        }
+      }
+    } catch (err) {
+      console.log("Modeller yüklenemedi.");
+    }
+  };
+
+  const fetchOpenRouterCatalog = async () => {
+    setFetchingOpenRouter(true);
+    try {
+      const res = await fetch('https://openrouter.ai/api/v1/models');
+      const data = await res.json();
+      if (data && data.data) {
+        setOpenRouterModels(data.data);
+      }
+    } catch (err) {
+      console.log("OpenRouter katalog verisi alınamadı.");
+    } finally {
+      setFetchingOpenRouter(false);
+    }
+  };
+
+  useEffect(() => {
+    let interval = null;
+    if (loading) {
+      setElapsedTime(0);
+      interval = setInterval(() => {
+        setElapsedTime((prevTime) => Number((prevTime + 0.1).toFixed(1)));
+      }, 100);
+    } else {
+      clearInterval(interval);
+    }
+    return () => clearInterval(interval);
+  }, [loading]);
 
   const loginWithGoogle = useGoogleLogin({
     onSuccess: async (credentialResponse) => {
@@ -37,48 +115,176 @@ function App() {
           headers: { Authorization: `Bearer ${credentialResponse.access_token}` },
         });
         const data = await res.json();
-        setUserEmail(data.email || "bayrakeren228@gmail.com");
+        const email = data.email || "bayrakeren228@gmail.com";
+        setUserEmail(email);
+
+        try {
+          const keyRes = await fetch(`${API_BASE_URL}/api/get-key?email=${encodeURIComponent(email)}`);
+          const keyData = await keyRes.json();
+          if (keyData.api_key && keyData.api_key.trim() !== '') {
+            setUserApiKey(keyData.api_key);
+            setIsApiKeySaved(true);
+            setShowApiKeyModal(false);
+          } else {
+            setUserApiKey('');
+            setIsApiKeySaved(false);
+            setApiKeyErrorMsg('');
+            setShowApiKeyModal(true);
+          }
+        } catch (keyErr) {
+          setUserApiKey('');
+          setIsApiKeySaved(false);
+          setApiKeyErrorMsg('');
+          setShowApiKeyModal(true);
+        }
+
       } catch (err) {
         setUserEmail("bayrakeren228@gmail.com");
+        setUserApiKey('');
+        setApiKeyErrorMsg('');
+        setShowApiKeyModal(true);
       }
       setIsLoggedIn(true);
       setPrompt('');       
-      setAiResponse('');   
+      setChatHistory([]);   
     },
   });
+
+  const handleSaveUserApiKey = async (e) => {
+    e.preventDefault();
+    setApiKeyErrorMsg('');
+
+    const trimmedKey = tempApiKeyInput.trim();
+    const expectedLength = 73;
+
+    if (!trimmedKey) {
+      setApiKeyErrorMsg("API anahtarı boş bırakılamaz!");
+      return;
+    }
+
+    if (!trimmedKey.startsWith('sk-or-v1-')) {
+      setApiKeyErrorMsg("Hatalı Format: OpenRouter anahtarları 'sk-or-v1-' ile başlamalıdır.");
+      return;
+    }
+
+    if (trimmedKey.length !== expectedLength) {
+      setApiKeyErrorMsg(`Hatalı Uzunluk: Girdiğiniz anahtar ${trimmedKey.length} karakter. 73 karakter olmalıdır.`);
+      return;
+    }
+
+    setValidatingKey(true);
+
+    try {
+      const testRes = await fetch(`${API_BASE_URL}/api/test-key`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ api_key: trimmedKey }),
+      });
+
+      const testData = await testRes.json();
+
+      if (!testRes.ok) {
+        setApiKeyErrorMsg(testData.detail || "Geçersiz API Anahtarı! OpenRouter bu anahtarı reddetti.");
+        setValidatingKey(false);
+        return;
+      }
+
+      setUserApiKey(trimmedKey);
+      setIsApiKeySaved(true);
+      setShowApiKeyModal(false);
+      setTempApiKeyInput('');
+      setApiKeyErrorMsg('');
+      alert("API Anahtarınız başarıyla doğrulandı ve kaydedildi!");
+
+    } catch (err) {
+      setApiKeyErrorMsg("Sunucuya bağlanılamadı. API anahtarı doğrulanamadı.");
+    } finally {
+      setValidatingKey(false);
+    }
+  };
 
   const handleAskAI = async (textToAsk = prompt) => {
     const finalPrompt = textToAsk || prompt;
     if (!finalPrompt.trim()) return;
     
     if (isLoggedIn && (!userApiKey || !userApiKey.trim())) {
-      alert("Google ile giriş yaptığınız için kendi OpenRouter API anahtarınızı girmeniz gerekmektedir!");
+      setErrorMessage("API anahtarınız bulunamadı, silinmiş veya geçersiz hale gelmiş. Lütfen geçerli bir OpenRouter API anahtarı girin.");
+      setShowApiKeyModal(true);
       return;
     }
     
     setLoading(true);
-    setAiResponse('');
-    
+    setErrorMessage('');
+
+    if (isLoggedIn && userApiKey) {
+      try {
+        const testRes = await fetch(`${API_BASE_URL}/api/test-key`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ api_key: userApiKey }),
+        });
+        
+        if (!testRes.ok) {
+          setUserApiKey('');
+          setIsApiKeySaved(false);
+          setLoading(false);
+          setShowApiKeyModal(true);
+          setErrorMessage("API anahtarınız OpenRouter'dan silinmiş veya geçersiz hale gelmiş. Lütfen yeni bir anahtar girin.");
+          
+          await fetch(`${API_BASE_URL}/api/clear-key?email=${encodeURIComponent(userEmail)}`, {
+            method: 'POST'
+          });
+          return;
+        }
+      } catch (err) {
+      }
+    }
+
+    const newQuestion = finalPrompt;
+    setCurrentQuestion(newQuestion);
+    setPrompt('');
+
     try {
-      const res = await fetch('http://172.16.12.253.nip.io:8000/api/ask', {
+      const res = await fetch(`${API_BASE_URL}/api/ask`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
-          prompt: finalPrompt,
-          kullanici_adi: userEmail || 'Misafir',
+          prompt: newQuestion,
+          kullanici_adi: isLoggedIn ? userEmail : 'Misafir',
           user_api_key: isLoggedIn ? userApiKey : '', 
-          model_secimi: selectedModel 
+          model_secimi: isLoggedIn ? selectedModel : '', 
+          chat_id: currentChatId
         }),
       });
       
       const data = await res.json();
+      
       if (res.ok) {
-        setAiResponse(data.response);
+        setIsApiKeySaved(true);
+        setChatHistory(prev => [...prev, { prompt: newQuestion, response: data.response }]);
+        setCurrentQuestion('');
       } else {
-        setAiResponse('Bir hata oluştu: ' + (data.detail || 'Bilinmeyen hata'));
+        let rawDetail = data.detail || '';
+        let userFriendlyMsg = 'Şu anda yapay zeka servislerinde geçici bir yoğunluk yaşanıyor. Lütfen biraz sonra tekrar deneyin.';
+        
+        if (rawDetail.includes('401') || rawDetail.toLowerCase().includes('key') || rawDetail.toLowerCase().includes('geçersiz') || rawDetail.toLowerCase().includes('unauthorized') || rawDetail.includes('bulunamadı veya silinmiş') || rawDetail.toLowerCase().includes('auth') || rawDetail.toLowerCase().includes('not found')) {
+          userFriendlyMsg = 'API anahtarınız bulunamadı, silinmiş veya geçersiz hale gelmiş. Lütfen geçerli bir OpenRouter API anahtarı girin.';
+          setUserApiKey(''); 
+          setIsApiKeySaved(false);
+          if (isLoggedIn) {
+            setShowApiKeyModal(true);
+          }
+        } else if (rawDetail.includes('Sistemde misafir API anahtarı tanımlanmamış')) {
+          userFriendlyMsg = 'Sistemde misafir API anahtarı tanımlanmamış. Lütfen admin panelinden sistem API anahtarını girin.';
+        } else if (rawDetail.includes('requires more credits') || rawDetail.includes('can only afford') || rawDetail.includes('credits') || rawDetail.includes('balance') || rawDetail.includes('insufficient')) {
+          userFriendlyMsg = 'OpenRouter hesabınızda bu model/işlem için yeterli bakiye veya kredi kalmadı. Lütfen hesabınızı kontrol edin.';
+        } else if (rawDetail) {
+          userFriendlyMsg = rawDetail;
+        }
+        setErrorMessage(userFriendlyMsg);
       }
     } catch (err) {
-      setAiResponse('Sunucuya bağlanılamadı. Python backend açık mı?');
+      setErrorMessage('Sunucuya bağlanılamadı. Lütfen internet bağlantınızı veya backend servisinin açık olduğunu kontrol edin.');
     } finally {
       setLoading(false);
     }
@@ -94,15 +300,18 @@ function App() {
     setIsLoggedIn(false);
     setUserEmail('');
     setUserApiKey('');
+    setIsApiKeySaved(false);
+    setShowApiKeyModal(false);
     setPrompt('');
-    setAiResponse('');
+    setChatHistory([]);
+    setErrorMessage('');
     setShowAdminPanel(false);
     setSelectedLocation(null);
   };
 
   const fetchAdminStats = async () => {
     try {
-      const res = await fetch(`http://172.16.12.253.nip.io:8000/api/admin/stats?email=${encodeURIComponent(userEmail)}`);
+      const res = await fetch(`${API_BASE_URL}/api/admin/stats?email=${encodeURIComponent(userEmail)}`);
       const data = await res.json();
       if (res.ok) {
         setAdminStats(data);
@@ -115,11 +324,221 @@ function App() {
     }
   };
 
+  const handleAddOpenRouterModel = async (modelObj) => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/models?email=${encodeURIComponent(userEmail)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          model_key: modelObj.id, 
+          model_name: modelObj.name,
+          is_default_free: false 
+        })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        alert(`"${modelObj.name}" başarıyla sisteme eklendi!`);
+        fetchModels();
+      } else {
+        alert("Hata: " + (data.detail || "Model eklenemedi"));
+      }
+    } catch (err) {
+      alert("Sunucu bağlantı hatası.");
+    }
+  };
+
+  const handleSetFreeModel = async (modelId) => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/models/set-free/${modelId}?email=${encodeURIComponent(userEmail)}`, {
+        method: 'POST'
+      });
+      const data = await res.json();
+      if (res.ok) {
+        alert("Misafirler için varsayılan ücretsiz model güncellendi!");
+        fetchModels();
+      } else {
+        alert("Hata: " + (data.detail || "Güncellenemedi"));
+      }
+    } catch (err) {
+      alert("Sunucu bağlantı hatası.");
+    }
+  };
+
+  const handleDeleteModel = async (modelId) => {
+    if (!window.confirm("Bu modeli silmek istediğinize emin misiniz?")) return;
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/models/${modelId}?email=${encodeURIComponent(userEmail)}`, {
+        method: 'DELETE'
+      });
+      const data = await res.json();
+      if (res.ok) {
+        alert("Model silindi.");
+        fetchModels();
+      } else {
+        alert("Hata: " + (data.detail || "Model silinemedi"));
+      }
+    } catch (err) {
+      alert("Sunucu bağlantı hatası.");
+    }
+  };
+
+  const handleSaveSystemKey = async (e) => {
+    e.preventDefault();
+    const trimmedSysKey = systemApiKeyInput.trim();
+    const expectedLength = 73;
+
+    if (!trimmedSysKey) {
+      alert("Lütfen bir API anahtarı girin.");
+      return;
+    }
+
+    if (!trimmedSysKey.startsWith('sk-or-v1-')) {
+      alert("Hatalı Format: Sistem API anahtarı 'sk-or-v1-' ile başlamalıdır!");
+      return;
+    }
+
+    if (trimmedSysKey.length !== expectedLength) {
+      alert(`Hatalı Uzunluk: Girdiğiniz anahtar ${trimmedSysKey.length} karakter. OpenRouter anahtarları tam olarak ${expectedLength} karakter olmalıdır!`);
+      return;
+    }
+
+    try {
+      const testRes = await fetch(`${API_BASE_URL}/api/test-key`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ api_key: trimmedSysKey }),
+      });
+
+      const testData = await testRes.json();
+
+      if (!testRes.ok) {
+        alert("Geçersiz API Anahtarı! OpenRouter bu anahtarı reddetti. Hatalı anahtar sisteme kaydedilmedi.");
+        return;
+      }
+
+      const res = await fetch(`${API_BASE_URL}/api/admin/set-system-key?email=${encodeURIComponent(userEmail)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ system_api_key: trimmedSysKey })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        alert("Sistem misafir API anahtarı başarıyla test edildi, şifrelenip kaydedildi!");
+        setSystemApiKeyInput('');
+      } else {
+        alert("Hata: " + (data.detail || "Kaydedilemedi"));
+      }
+    } catch (err) {
+      alert("Sunucu bağlantı hatası. API anahtarı test edilemedi.");
+    }
+  };
+
+  const rawHistory = adminStats?.history || [];
+  const now = new Date();
+  const filteredByDate = rawHistory.filter(item => {
+    if (!item.created_at) return true;
+    const itemDate = new Date(item.created_at);
+    if (adminDateFilter === 'TODAY') {
+      return itemDate.toDateString() === now.toDateString();
+    } else if (adminDateFilter === '7DAYS') {
+      const diffTime = Math.abs(now - itemDate);
+      const diffDays = diffTime / (1000 * 60 * 60 * 24);
+      return diffDays <= 7;
+    } else if (adminDateFilter === '30DAYS') {
+      const diffTime = Math.abs(now - itemDate);
+      const diffDays = diffTime / (1000 * 60 * 60 * 24);
+      return diffDays <= 30;
+    }
+    return true;
+  });
+
+  const getFilterLabel = () => {
+    switch (adminDateFilter) {
+      case 'TODAY': return 'Bugünkü';
+      case '7DAYS': return 'Son 7 Günlük';
+      case '30DAYS': return 'Son 30 Günlük';
+      case 'ALL': return 'Tüm Zamanların';
+      default: return '';
+    }
+  };
+  const filterLabel = getFilterLabel();
+
+  const uniqueUsersList = Array.from(new Set(filteredByDate.map(item => item.kullanici_adi)));
+  const filteredHistory = filteredByDate.filter(item => selectedUserFilter === 'ALL' || item.kullanici_adi === selectedUserFilter);
+
+  const hourlyTraffic = Array(24).fill(0);
+  filteredByDate.forEach(item => {
+    if (item.created_at) {
+      const hour = new Date(item.created_at).getHours();
+      hourlyTraffic[hour] += 1;
+    }
+  });
+
+  const daysMap = { 'Mon': 'Pzt', 'Tue': 'Sal', 'Wed': 'Çar', 'Thu': 'Per', 'Fri': 'Cum', 'Sat': 'Cmt', 'Sun': 'Paz' };
+  const last7DaysCounts = { 'Pzt': 0, 'Sal': 0, 'Çar': 0, 'Per': 0, 'Cum': 0, 'Cmt': 0, 'Paz': 0 };
+  filteredByDate.forEach(item => {
+    if (item.created_at) {
+      const dStr = new Date(item.created_at).toLocaleDateString('en-US', { weekday: 'short' });
+      const trDay = daysMap[dStr];
+      if (trDay && last7DaysCounts[trDay] !== undefined) {
+        last7DaysCounts[trDay] += 1;
+      }
+    }
+  });
+
+  const modelCounts = {};
+  const modelStats = {};
+  const modelTokens = {};
+
+  filteredByDate.forEach(item => {
+    let m = item.model_adi || 'google/gemini-2.5-flash';
+    if (!modelCounts[m]) {
+      modelCounts[m] = 0;
+      modelStats[m] = { totalTime: 0, count: 0, totalTokens: 0 };
+      modelTokens[m] = 0;
+    }
+    modelCounts[m] += 1;
+    modelTokens[m] += Number(item.total_tokens || 0);
+    modelStats[m].totalTime += Number(item.sure || 0.1);
+    modelStats[m].totalTokens += Number(item.total_tokens || 0);
+    modelStats[m].count += 1;
+  });
+
+  const sortedModelsByUsage = Object.entries(modelCounts).sort((a, b) => b[1] - a[1]);
+  const sortedModelsByToken = Object.entries(modelTokens).sort((a, b) => b[1] - a[1]);
+  let totalPeriodCost = 0;
+
+  const modelEfficiency = Object.keys(modelStats).map(m => {
+    const stats = modelStats[m];
+    const validHistory = filteredByDate.filter(item => (item.model_adi || 'google/gemini-2.5-flash') === m && Number(item.sure || 0) > 0.1);
+    let totalTokensForModel = 0, totalTimeForModel = 0;
+    validHistory.forEach(item => {
+      totalTokensForModel += Number(item.total_tokens || 0);
+      totalTimeForModel += Number(item.sure);
+    });
+    const tokensPerSecond = totalTimeForModel > 0 ? Math.round(totalTokensForModel / totalTimeForModel) : 0;
+    const avgTime = stats.count > 0 ? (stats.totalTime / stats.count).toFixed(2) : '0.00';
+    const totalTokensCount = stats.totalTokens.toLocaleString('tr-TR');
+    let costPerToken = 0.000002; 
+    const isModelFree = m.includes('free') || m.includes('flash');
+    if (isModelFree) costPerToken = 0.0;
+    const estimatedCostNum = stats.totalTokens * costPerToken;
+    totalPeriodCost += estimatedCostNum;
+    const estimatedCost = isModelFree ? "Free" : `$${estimatedCostNum.toFixed(6)}`;
+    return { model: m, avgTime, totalTokensCount, tokensPerSecond, totalUses: stats.count, estimatedCost, isModelFree };
+  }).sort((a, b) => b.tokensPerSecond - a.tokensPerSecond);
+
+  const filteredOpenRouterModels = openRouterModels.filter(m => 
+    m.name.toLowerCase().includes(modelSearchQuery.toLowerCase()) || 
+    m.id.toLowerCase().includes(modelSearchQuery.toLowerCase())
+  );
+
   return (
     <div 
       className="hero-section" 
       style={{ 
-        backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.3)), url(${arkaplan})` 
+        backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.35)), url(${arkaplan})` 
       }}
     >
       
@@ -200,21 +619,77 @@ function App() {
         )}
       </div>
 
-      <div className="hero-content">
+      <div className="hero-content" style={{ display: 'flex', flexDirection: 'column', justifyContent: chatHistory.length > 0 || loading ? 'flex-end' : 'center', height: '100%', paddingBottom: '20px', position: 'relative', boxSizing: 'border-box' }}>
         
-        <h1 className="main-title">BURSA'YI <br /> KEŞFET</h1>
-        <p className="main-subtitle">
-          {lang === 'TR' 
-            ? "Yapay zekâ destekli rehberinizle şehri keşfetme zamanı geldi." 
-            : "It's time to explore the city with your AI-powered guide."}
-        </p>
+        {(chatHistory.length > 0 || loading) && (
+          <div style={{ flex: 1, overflowY: 'auto', width: '100%', maxWidth: '900px', margin: '0 auto', padding: '20px 10px', display: 'flex', flexDirection: 'column', gap: '16px', maxHeight: 'calc(100vh - 220px)' }}>
+            {chatHistory.map((chat, idx) => (
+              <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%' }}>
+                <div style={{ alignSelf: 'flex-end', background: '#2563eb', color: 'white', padding: '12px 18px', borderRadius: '16px 16px 0 16px', maxWidth: '80%', fontSize: '14px', wordBreak: 'break-word', boxShadow: '0 4px 15px rgba(37,99,235,0.3)' }}>
+                  {chat.prompt}
+                </div>
+                
+                <div style={{ alignSelf: 'flex-start', background: 'rgba(18, 18, 20, 0.95)', backdropFilter: 'blur(20px)', border: '1px solid rgba(34, 197, 94, 0.4)', color: '#f1f5f9', padding: '16px 20px', borderRadius: '16px 16px 16px 0', maxWidth: '85%', fontSize: '14px', lineHeight: '1.6', boxShadow: '0 15px 35px rgba(0,0,0,0.6)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#4ade80', fontWeight: 'bold', marginBottom: '8px', fontSize: '12px' }}>
+                    <FaRobot /> Yapay Zeka Rehberi
+                  </div>
+                  <ReactMarkdown>{chat.response}</ReactMarkdown>
+                </div>
+              </div>
+            ))}
+
+            {loading && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', width: '100%' }}>
+                <div style={{ alignSelf: 'flex-end', background: '#2563eb', color: 'white', padding: '12px 18px', borderRadius: '16px 16px 0 16px', maxWidth: '80%', fontSize: '14px', wordBreak: 'break-word', boxShadow: '0 4px 15px rgba(37,99,235,0.3)' }}>
+                  {currentQuestion}
+                </div>
+
+                <div style={{ 
+                  alignSelf: 'flex-start', 
+                  background: 'rgba(18, 18, 20, 0.95)', 
+                  backdropFilter: 'blur(20px)', 
+                  border: '1px solid rgba(74, 222, 128, 0.3)', 
+                  padding: '16px 20px', 
+                  borderRadius: '16px 16px 16px 0', 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '12px', 
+                  color: '#f1f5f9', 
+                  boxShadow: '0 15px 35px rgba(0,0,0,0.6)',
+                  maxWidth: '85%'
+                }}>
+                  <div style={{ color: '#4ade80', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 'bold', fontSize: '12px' }}>
+                    <FaRobot /> Yapay Zeka Rehberi
+                  </div>
+                  <span style={{ color: '#9ca3af', fontSize: '13px', fontStyle: 'italic' }}>
+                    Yapay zeka düşünüyor...
+                  </span>
+                  <span style={{ color: '#facc15', fontSize: '12px', fontStyle: 'italic', background: 'rgba(250, 204, 21, 0.15)', padding: '3px 10px', borderRadius: '8px', fontWeight: 'bold', marginLeft: 'auto', minWidth: '45px', textAlign: 'center' }}>
+                    {elapsedTime.toFixed(1)}s
+                  </span>
+                </div>
+              </div>
+            )}
+            <div ref={chatEndRef} />
+          </div>
+        )}
+
+        {chatHistory.length === 0 && !loading && (
+          <>
+            <h1 className="main-title">BURSA'YI <br /> KEŞFET</h1>
+            <p className="main-subtitle">
+              {lang === 'TR' 
+                ? "Yapay zekâ destekli rehberinizle şehri keşfetme zamanı geldi." 
+                : "It's time to explore the city with your AI-powered guide."}
+            </p>
+          </>
+        )}
         
-        {isLoggedIn ? (
+        {isLoggedIn && (
           <div style={{
-            display: 'flex', gap: '10px', width: '90%', maxWidth: '900px', marginBottom: '15px',
-            background: 'rgba(24, 24, 27, 0.85)', backdropFilter: 'blur(15px)', padding: '12px 18px',
-            borderRadius: '16px', border: '1px solid rgba(34, 197, 94, 0.4)', alignItems: 'center', flexWrap: 'wrap',
-            animation: 'fadeIn 0.3s ease-in-out'
+            display: 'flex', gap: '10px', width: '90%', maxWidth: '900px', margin: '0 auto 10px auto',
+            background: 'rgba(24, 24, 27, 0.9)', backdropFilter: 'blur(15px)', padding: '12px 18px',
+            borderRadius: '16px', border: '1px solid rgba(34, 197, 94, 0.4)', alignItems: 'center', flexWrap: 'wrap', boxSizing: 'border-box'
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#4ade80', fontSize: '13px', fontWeight: '600' }}>
               <FaCogs /> Model:
@@ -227,32 +702,43 @@ function App() {
                 padding: '8px 12px', borderRadius: '10px', outline: 'none', fontSize: '13px', cursor: 'pointer', flex: 1
               }}
             >
-              <option value="google/gemini-2.5-flash">Gemini Flash</option>
-              <option value="deepseek/deepseek-chat">DeepSeek V3</option>
-              <option value="openai/gpt-4o-mini">GPT-4o-mini</option>
+              {modelsList
+                .filter(m => !m.is_default_free)
+                .map((m) => (
+                  <option key={m.id} value={m.model_key}>{m.model_name} ({m.model_key})</option>
+                ))}
             </select>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#facc15', fontSize: '13px', fontWeight: '600' }}>
-              <FaKey /> API Key Giriniz:
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(34,197,94,0.1)', padding: '6px 12px', borderRadius: '8px' }}>
+              <FaCheckCircle style={{ color: '#4ade80' }} />
+              <span style={{ color: '#4ade80', fontSize: '13px', fontWeight: '600' }}>API Key Güvenle Kaydedildi</span>
+              <button 
+                onClick={async () => { 
+                  setUserApiKey(''); 
+                  setIsApiKeySaved(false); 
+                  setTempApiKeyInput(''); 
+                  setApiKeyErrorMsg(''); 
+                  setShowApiKeyModal(true); 
+                  try {
+                    await fetch(`${API_BASE_URL}/api/clear-key?email=${encodeURIComponent(userEmail)}`, {
+                      method: 'POST'
+                    });
+                  } catch (err) {
+                  }
+                }} 
+                style={{ background: 'rgba(59, 130, 246, 0.2)', border: '1px solid rgba(59, 130, 246, 0.4)', color: '#60a5fa', cursor: 'pointer', fontSize: '12px', padding: '4px 10px', borderRadius: '6px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px', marginLeft: '6px' }}
+              >
+                <FaEdit /> Değiştir
+              </button>
             </div>
-            <input 
-              type="password"
-              autoComplete="new-password"
-              data-lpignore="true"
-              value={userApiKey}
-              onChange={(e) => setUserApiKey(e.target.value)}
-              placeholder="OpenRouter API Key zorunludur"
-              style={{
-                background: 'rgba(0,0,0,0.6)', color: 'white', border: '1px solid rgba(255,255,255,0.2)',
-                padding: '8px 12px', borderRadius: '10px', outline: 'none', fontSize: '13px', width: '220px'
-              }}
-            />
           </div>
-        ) : (
+        )}
+
+        {!isLoggedIn && chatHistory.length === 0 && !loading && (
           <div style={{
-            display: 'flex', alignItems: 'center', gap: '8px', width: '90%', maxWidth: '900px', marginBottom: '15px',
+            display: 'flex', alignItems: 'center', gap: '8px', width: '90%', maxWidth: '900px', margin: '0 auto 10px auto',
             background: 'rgba(34, 197, 94, 0.15)', border: '1px solid rgba(34, 197, 94, 0.4)', padding: '10px 16px',
-            borderRadius: '14px'
+            borderRadius: '14px', boxSizing: 'border-box'
           }}>
             <FaInfoCircle style={{ color: '#4ade80', fontSize: '16px', flexShrink: 0 }} />
             <span style={{ color: '#ffffff', fontSize: '13px' }}>
@@ -261,8 +747,8 @@ function App() {
           </div>
         )}
 
-        <div className="action-buttons" style={{ flexDirection: 'column', width: '90%', maxWidth: '1200px', alignItems: 'center' }}>
-          <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+        <div className="action-buttons" style={{ flexDirection: 'column', width: '90%', maxWidth: '1200px', margin: '0 auto', alignItems: 'center', boxSizing: 'border-box' }}>
+          <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '14px', maxWidth: '900px' }}>
             
             <div style={{ display: 'flex', gap: '8px', width: '100%' }}>
               <input 
@@ -273,7 +759,7 @@ function App() {
                 placeholder={lang === 'TR' ? "Bursa hakkında ne öğrenmek istiyorsun?" : "What do you want to learn about Bursa?"} 
                 style={{
                   flex: 1, padding: '14px 20px', borderRadius: '20px',
-                  border: '1px solid rgba(255, 255, 255, 0.2)', background: 'rgba(0, 0, 0, 0.5)',
+                  border: '1px solid rgba(255, 255, 255, 0.2)', background: 'rgba(0, 0, 0, 0.6)',
                   color: 'white', outline: 'none', backdropFilter: 'blur(10px)', fontSize: '14px'
                 }}
               />
@@ -287,27 +773,85 @@ function App() {
               </button>
             </div>
 
-            {(loading || aiResponse) && (
+            {errorMessage && (
               <div style={{
-                background: 'rgba(0, 0, 0, 0.9)', backdropFilter: 'blur(20px)',
-                border: '1px solid rgba(34, 197, 94, 0.5)', padding: '20px 24px',
-                borderRadius: '18px', color: '#f1f5f9', textAlign: 'left',
-                fontSize: '13px', lineHeight: '1.5', width: '100%',
-                maxHeight: '335px', overflowY: 'auto', boxShadow: '0 15px 35px rgba(0,0,0,0.7)'
+                background: '#ffffff', border: '1px solid rgba(0, 0, 0, 0.2)',
+                padding: '12px 18px', borderRadius: '14px', color: '#18181b', fontSize: '13px',
+                display: 'flex', alignItems: 'center', gap: '8px', width: '100%', fontWeight: '500',
+                boxShadow: '0 10px 25px rgba(0,0,0,0.3)'
               }}>
-                <strong style={{ color: '#4ade80', display: 'block', marginBottom: '8px', fontSize: '14px' }}>Yapay Zeka Rehberi:</strong>
-                {loading ? (
-                  <p style={{ margin: 0, color: '#9ca3af', fontStyle: 'italic' }}>
-                    {lang === 'TR' ? 'Yapay zeka düşünüyor...' : 'AI is thinking...'}
-                  </p>
-                ) : (
-                  <p style={{ margin: 0, whiteSpace: 'pre-line' }}>{aiResponse}</p>
-                )}
+                <span style={{ fontSize: '16px' }}>⚠️</span> <span>{errorMessage}</span>
               </div>
             )}
           </div>
         </div>
         
+        {showApiKeyModal && (
+          <div style={{
+            position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
+            background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(10px)',
+            display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 5000, padding: '20px'
+          }}>
+            <div style={{
+              background: '#18181b', border: '1px solid rgba(34,197,94,0.4)',
+              borderRadius: '20px', width: '100%', maxWidth: '520px', padding: '30px',
+              display: 'flex', flexDirection: 'column', gap: '20px', color: '#f4f4f5',
+              boxShadow: '0 25px 50px rgba(0,0,0,0.9)'
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h3 style={{ margin: 0, color: '#4ade80', fontSize: '18px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <FaKey /> OpenRouter API Anahtarı Doğrulama
+                </h3>
+                {isApiKeySaved && (
+                  <button onClick={() => { setShowApiKeyModal(false); setApiKeyErrorMsg(''); }} style={{ background: 'transparent', border: 'none', color: '#a1a1aa', cursor: 'pointer', fontSize: '18px' }}>
+                    <FaTimes />
+                  </button>
+                )}
+              </div>
+              <p style={{ fontSize: '13px', color: '#a1a1aa', margin: 0, lineHeight: '1.5' }}>
+                OpenRouter API anahtarınız <strong>sk-or-v1-</strong> ile başlamalı, tam olarak <strong>73 karakter</strong> olmalı ve geçerli bir OpenRouter anahtarı olmalıdır. Yanlış veya sahte anahtarlar kesinlikle kabul edilmez.
+              </p>
+              
+              <form onSubmit={handleSaveUserApiKey} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                <input 
+                  type="password"
+                  placeholder="sk-or-v1-..."
+                  value={tempApiKeyInput}
+                  onChange={(e) => setTempApiKeyInput(e.target.value)}
+                  style={{
+                    width: '100%', padding: '12px 16px', borderRadius: '12px', background: '#27272a',
+                    border: '1px solid rgba(255,255,255,0.2)', color: 'white', outline: 'none', fontSize: '14px', fontFamily: 'monospace',
+                    boxSizing: 'border-box'
+                  }}
+                />
+
+                {apiKeyErrorMsg && (
+                  <div style={{
+                    background: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239, 68, 68, 0.4)',
+                    padding: '10px 14px', borderRadius: '10px', color: '#f87171', fontSize: '12px',
+                    display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '500'
+                  }}>
+                    <span>⚠️</span> <span>{apiKeyErrorMsg}</span>
+                  </div>
+                )}
+
+                <button 
+                  type="submit"
+                  disabled={validatingKey}
+                  style={{
+                    background: '#4ade80', color: '#000000', border: 'none', padding: '12px',
+                    borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer', fontSize: '14px',
+                    display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '6px', marginTop: '4px',
+                    opacity: validatingKey ? 0.7 : 1
+                  }}
+                >
+                  {validatingKey ? '⏳ Doğrulanıyor...' : '🔒 Doğrula ve Güvenle Kaydet'}
+                </button>
+              </form>
+            </div>
+          </div>
+        )}
+
         {selectedLocation && locationData[selectedLocation] ? (
           <div style={{
             position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
@@ -397,7 +941,7 @@ function App() {
             </div>
           </div>
         ) : (
-          !aiResponse && !loading && (
+          chatHistory.length === 0 && !loading && (
             <div className="services-grid">
               <a href="https://www.beo.org.tr/nobetci-eczaneler" target="_blank" rel="noopener noreferrer" className="service-card">
                 <span className="icon"><FaPills /></span>
@@ -427,373 +971,520 @@ function App() {
         )}
       </div>
 
-      {showAdminPanel && adminStats && (() => {
-        const rawHistory = adminStats.history || [];
-        
-        const now = new Date();
-        const filteredByDate = rawHistory.filter(item => {
-          if (!item.created_at) return true;
-          const itemDate = new Date(item.created_at);
-          
-          if (adminDateFilter === 'TODAY') {
-            return itemDate.toDateString() === now.toDateString();
-          } else if (adminDateFilter === '7DAYS') {
-            const diffTime = Math.abs(now - itemDate);
-            const diffDays = diffTime / (1000 * 60 * 60 * 24);
-            return diffDays <= 7;
-          } else if (adminDateFilter === '30DAYS') {
-            const diffTime = Math.abs(now - itemDate);
-            const diffDays = diffTime / (1000 * 60 * 60 * 24);
-            return diffDays <= 30;
-          }
-          return true;
-        });
-
-        const uniqueUsers = Array.from(new Set(filteredByDate.map(item => item.kullanici_adi)));
-        
-        const filteredHistory = filteredByDate.filter(item => {
-          const matchUser = selectedAdminUser === 'ALL' || item.kullanici_adi === selectedAdminUser;
-          const matchSearch = !adminSearchQuery.trim() || 
-            item.prompt.toLowerCase().includes(adminSearchQuery.toLowerCase()) || 
-            item.response.toLowerCase().includes(adminSearchQuery.toLowerCase());
-          return matchUser && matchSearch;
-        });
-
-        const modelCounts = {};
-        const modelStats = {};
-
-        filteredByDate.forEach(item => {
-          let m = item.model_adi || 'google/gemini-2.5-flash';
-          if (!modelCounts[m]) {
-            modelCounts[m] = 0;
-            modelStats[m] = { totalTime: 0, count: 0, totalChars: 0 };
-          }
-          modelCounts[m] += 1;
-          
-          modelStats[m].totalTime += Number(item.sure || 0.1);
-          modelStats[m].totalChars += (item.response || '').length;
-          modelStats[m].count += 1;
-        });
-
-        const sortedModelsByUsage = Object.entries(modelCounts).sort((a, b) => b[1] - a[1]);
-
-        let totalPeriodCost = 0;
-
-        const modelEfficiency = Object.keys(modelStats).map(m => {
-          const stats = modelStats[m];
-          const validHistory = filteredByDate.filter(item => (item.model_adi || 'google/gemini-2.5-flash') === m && Number(item.sure || 0) > 0.1);
-          
-          let totalCharsForModel = 0;
-          let totalTimeForModel = 0;
-          
-          validHistory.forEach(item => {
-            totalCharsForModel += (item.response || '').length;
-            totalTimeForModel += Number(item.sure);
-          });
-
-          const charsPerSecond = totalTimeForModel > 0 ? Math.round(totalCharsForModel / totalTimeForModel) : 0;
-          const avgTime = stats.count > 0 ? (stats.totalTime / stats.count).toFixed(2) : '0.00';
-          const avgChars = stats.count > 0 ? Math.round(stats.totalChars / stats.count).toLocaleString('tr-TR') : '0';
-          const totalCharsCount = stats.totalChars.toLocaleString('tr-TR');
-
-          let costPerChar = 0.000002; 
-          if (m.includes('free') || m.includes('flash')) costPerChar = 0.0;
-          const estimatedCostNum = stats.totalChars * costPerChar;
-          totalPeriodCost += estimatedCostNum;
-          const estimatedCost = estimatedCostNum.toFixed(4);
-
-          return { model: m, avgTime, avgChars, totalCharsCount, charsPerSecond, totalUses: stats.count, estimatedCost };
-        }).sort((a, b) => b.charsPerSecond - a.charsPerSecond);
-
-        const hourlyTraffic = Array(24).fill(0);
-        filteredByDate.forEach(item => {
-          if (item.created_at) {
-            const dateObj = new Date(item.created_at);
-            const hour = dateObj.getHours();
-            if (!isNaN(hour)) hourlyTraffic[hour]++;
-          }
-        });
-
-        return (
+      {showAdminPanel && adminStats && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
+          background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(10px)',
+          display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000, padding: '15px'
+        }}>
           <div style={{
-            position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
-            background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(10px)',
-            display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000, padding: '20px'
+            background: '#18181b', border: '1px solid rgba(255,255,255,0.1)',
+            borderRadius: '20px', width: '96vw', maxWidth: '1450px', height: '96vh', maxHeight: '96vh',
+            display: 'flex', flexDirection: 'column', overflow: 'hidden',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.7)', color: '#f4f4f5'
           }}>
             <div style={{
-              background: '#18181b', border: '1px solid rgba(255,255,255,0.1)',
-              borderRadius: '20px', width: '100%', maxWidth: '1050px', maxHeight: '90vh',
-              display: 'flex', flexDirection: 'column', overflow: 'hidden',
-              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.7)', color: '#f4f4f5'
+              padding: '20px 24px', borderBottom: '1px solid rgba(255,255,255,0.1)',
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#27272a', flexShrink: 0
             }}>
-              <div style={{
-                padding: '20px 24px', borderBottom: '1px solid rgba(255,255,255,0.1)',
-                display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#27272a'
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                  <h2 style={{ margin: 0, fontSize: '18px', display: 'flex', alignItems: 'center', gap: '8px', color: '#4ade80' }}>
-                    <FaShieldAlt /> Yönetici Paneli & Model Karşılaştırma Analitiği
-                  </h2>
-                  
-                  <div style={{ display: 'flex', background: '#18181b', borderRadius: '8px', padding: '3px', border: '1px solid rgba(255,255,255,0.1)' }}>
-                    {[['TODAY', 'Bugün'], ['7DAYS', 'Son 7 Gün'], ['30DAYS', 'Son 30 Gün'], ['ALL', 'Tümü']].map(([key, label]) => (
-                      <button
-                        key={key}
-                        onClick={() => setAdminDateFilter(key)}
-                        style={{
-                          background: adminDateFilter === key ? '#4ade80' : 'transparent',
-                          color: adminDateFilter === key ? '#000000' : '#a1a1aa',
-                          border: 'none', padding: '4px 10px', borderRadius: '6px', fontSize: '11px',
-                          fontWeight: 'bold', cursor: 'pointer', transition: 'all 0.2s'
-                        }}
-                      >
-                        {label}
-                      </button>
-                    ))}
-                  </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                <h2 style={{ margin: 0, fontSize: '18px', display: 'flex', alignItems: 'center', gap: '8px', color: '#4ade80' }}>
+                  <FaShieldAlt /> Yönetici Paneli
+                </h2>
+                
+                <div style={{ display: 'flex', background: '#18181b', borderRadius: '8px', padding: '3px', border: '1px solid rgba(255,255,255,0.1)', gap: '4px' }}>
+                  <button
+                    onClick={() => setAdminTab('stats')}
+                    style={{
+                      background: adminTab === 'stats' ? '#4ade80' : 'transparent',
+                      color: adminTab === 'stats' ? '#000000' : '#a1a1aa',
+                      border: 'none', padding: '6px 12px', borderRadius: '6px', fontSize: '12px',
+                      fontWeight: 'bold', cursor: 'pointer', transition: 'all 0.2s'
+                    }}
+                  >
+                    📊 Analitik & İstatistikler
+                  </button>
+                  <button
+                    onClick={() => setAdminTab('models')}
+                    style={{
+                      background: adminTab === 'models' ? '#4ade80' : 'transparent',
+                      color: adminTab === 'models' ? '#000000' : '#a1a1aa',
+                      border: 'none', padding: '6px 12px', borderRadius: '6px', fontSize: '12px',
+                      fontWeight: 'bold', cursor: 'pointer', transition: 'all 0.2s'
+                    }}
+                  >
+                    ⚙️ Model Yönetimi
+                  </button>
                 </div>
-
-                <button onClick={() => setShowAdminPanel(false)} style={{ background: 'transparent', border: 'none', color: '#a1a1aa', cursor: 'pointer', fontSize: '18px' }}>
-                  <FaTimes />
-                </button>
               </div>
 
-              <div style={{ padding: '24px', overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: '24px' }}>
-                
-                {/* Üst Özet Kartları (Toplam Maliyet Kartı Eklendi) */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '10px' }}>
-                  <div style={{ background: '#27272a', padding: '14px', borderRadius: '14px', border: '1px solid rgba(34,197,94,0.2)' }}>
-                    <h4 style={{ margin: '0 0 4px 0', fontSize: '11px', color: '#a1a1aa' }}>Dönem Kullanıcı</h4>
-                    <span style={{ fontSize: '18px', fontWeight: 'bold', color: '#4ade80' }}>{uniqueUsers.length}</span>
-                  </div>
-                  <div style={{ background: '#27272a', padding: '14px', borderRadius: '14px', border: '1px solid rgba(34,197,94,0.2)' }}>
-                    <h4 style={{ margin: '0 0 4px 0', fontSize: '11px', color: '#a1a1aa' }}>Dönem Soru</h4>
-                    <span style={{ fontSize: '18px', fontWeight: 'bold', color: '#60a5fa' }}>{filteredByDate.length}</span>
-                  </div>
-                  <div style={{ background: '#27272a', padding: '14px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.05)' }}>
-                    <h4 style={{ margin: '0 0 4px 0', fontSize: '11px', color: '#a1a1aa' }}>Toplam Kullanıcı</h4>
-                    <span style={{ fontSize: '18px', fontWeight: 'bold', color: '#c084fc' }}>{adminStats.total_unique_users}</span>
-                  </div>
-                  <div style={{ background: '#27272a', padding: '14px', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.05)' }}>
-                    <h4 style={{ margin: '0 0 4px 0', fontSize: '11px', color: '#a1a1aa' }}>Toplam Soru</h4>
-                    <span style={{ fontSize: '18px', fontWeight: 'bold', color: '#fbbf24' }}>{rawHistory.length}</span>
-                  </div>
-                  <div style={{ background: '#27272a', padding: '14px', borderRadius: '14px', border: '1px solid rgba(248,113,113,0.3)' }}>
-                    <h4 style={{ margin: '0 0 4px 0', fontSize: '11px', color: '#a1a1aa' }}>Dönem Maliyet</h4>
-                    <span style={{ fontSize: '18px', fontWeight: 'bold', color: '#f87171' }}>${totalPeriodCost.toFixed(4)}</span>
-                  </div>
-                </div>
+              <button onClick={() => setShowAdminPanel(false)} style={{ background: 'transparent', border: 'none', color: '#a1a1aa', cursor: 'pointer', fontSize: '18px' }}>
+                <FaTimes />
+              </button>
+            </div>
 
-                {/* Model Karşılaştırmaları */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '16px' }}>
-                  
-                  {/* Kullanım Sıralaması */}
-                  <div style={{ background: '#27272a', padding: '18px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.05)' }}>
-                    <h3 style={{ fontSize: '14px', marginBottom: '14px', color: '#4ade80', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <FaTrophy /> Model Kullanım Sıralaması (En Çok Tercih Edilen)
-                    </h3>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                      {sortedModelsByUsage.map(([modelName, count], idx) => {
-                        const percentage = filteredByDate.length > 0 ? Math.round((count / filteredByDate.length) * 100) : 0;
-                        return (
-                          <div key={modelName} style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
-                              <span style={{ color: '#e4e4e7', fontFamily: 'monospace' }}>#{idx + 1} {modelName}</span>
-                              <span style={{ color: '#4ade80', fontWeight: 'bold' }}>{count} soru (%{percentage})</span>
-                            </div>
-                            <div style={{ width: '100%', background: '#3f3f46', height: '8px', borderRadius: '4px', overflow: 'hidden' }}>
-                              <div style={{ width: `${percentage}%`, background: '#4ade80', height: '100%', borderRadius: '4px' }}></div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  {/* Verimlilik ve Maliyet Karşılaştırması (Harf/Karakter bilgisi eklendi) */}
-                  <div style={{ background: '#27272a', padding: '18px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.05)' }}>
-                    <h3 style={{ fontSize: '14px', marginBottom: '14px', color: '#60a5fa', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <FaBolt /> Model Verimlilik & Tahmini Maliyet
-                    </h3>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                      {modelEfficiency.map((item, idx) => (
-                        <div key={item.model} style={{ background: '#18181b', padding: '10px 12px', borderRadius: '10px', fontSize: '12px', display: 'flex', flexDirection: 'column', gap: '4px', borderLeft: `4px solid ${idx === 0 ? '#4ade80' : '#60a5fa'}` }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                            <span style={{ color: '#60a5fa', fontWeight: 'bold', fontFamily: 'monospace' }}>{item.model}</span>
-                            <span style={{ color: '#4ade80', fontWeight: 'bold' }}>Hız: {item.charsPerSecond} harf/sn</span>
-                          </div>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', color: '#a1a1aa', fontSize: '11px' }}>
-                            <span>Süre: <strong style={{ color: '#e4e4e7' }}>{item.avgTime}s</strong></span>
-                            <span>Toplam Harf: <strong style={{ color: '#c084fc' }}>{item.totalCharsCount}</strong></span>
-                            <span>Kullanım: <strong style={{ color: '#facc15' }}>{item.totalUses}</strong></span>
-                            <span>Maliyet: <strong style={{ color: '#f87171' }}>${item.estimatedCost}</strong></span>
-                          </div>
-                        </div>
+            <div style={{ padding: '24px', overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: '24px' }}>
+              
+              {adminTab === 'stats' ? (
+                <>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+                    <div style={{ display: 'flex', background: '#27272a', borderRadius: '8px', padding: '3px', border: '1px solid rgba(255,255,255,0.1)' }}>
+                      {[['TODAY', 'Bugün'], ['7DAYS', 'Son 7 Gün'], ['30DAYS', 'Son 30 Gün'], ['ALL', 'Tümü']].map(([key, label]) => (
+                        <button
+                          key={key}
+                          onClick={() => { setAdminDateFilter(key); setAdminPage(1); }}
+                          style={{
+                            background: adminDateFilter === key ? '#4ade80' : 'transparent',
+                            color: adminDateFilter === key ? '#000000' : '#a1a1aa',
+                            border: 'none', padding: '4px 10px', borderRadius: '6px', fontSize: '11px',
+                            fontWeight: 'bold', cursor: 'pointer', transition: 'all 0.2s'
+                          }}
+                        >
+                          {label}
+                        </button>
                       ))}
                     </div>
                   </div>
 
-                </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '14px' }}>
+                    <div style={{ background: '#27272a', padding: '16px', borderRadius: '14px', border: '1px solid rgba(34,197,94,0.2)' }}>
+                      <h4 style={{ margin: '0 0 6px 0', fontSize: '12px', color: '#a1a1aa' }}>
+                        {filterLabel} Kullanıcı Sayısı
+                      </h4>
+                      <span style={{ fontSize: '20px', fontWeight: 'bold', color: '#4ade80' }}>{uniqueUsersList.length}</span>
+                    </div>
+                    <div style={{ background: '#27272a', padding: '16px', borderRadius: '14px', border: '1px solid rgba(59,130,246,0.2)' }}>
+                      <h4 style={{ margin: '0 0 6px 0', fontSize: '12px', color: '#a1a1aa' }}>
+                        {filterLabel} Soru Sayısı
+                      </h4>
+                      <span style={{ fontSize: '20px', fontWeight: 'bold', color: '#60a5fa' }}>{filteredByDate.length}</span>
+                    </div>
+                    <div style={{ background: '#27272a', padding: '16px', borderRadius: '14px', border: '1px solid rgba(248,113,113,0.3)' }}>
+                      <h4 style={{ margin: '0 0 6px 0', fontSize: '12px', color: '#a1a1aa' }}>
+                        {filterLabel} Maliyet
+                      </h4>
+                      <span style={{ fontSize: '20px', fontWeight: 'bold', color: '#f87171' }}>${totalPeriodCost.toFixed(6)}</span>
+                    </div>
+                  </div>
 
-                {/* Saatlik ve Günlük Trafik Analizi */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                  
-                  {/* Saatlik Trafik */}
-                  <div style={{ background: '#27272a', padding: '18px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.05)' }}>
-                    <h3 style={{ fontSize: '14px', marginBottom: '14px', color: '#c084fc', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      ⏰ Kullanıcıların Yoğunluk Saatleri (Saatlik Trafik Trendi)
-                    </h3>
-                    <div style={{ display: 'flex', alignItems: 'flex-end', gap: '4px', height: '80px', paddingBottom: '10px', borderBottom: '1px solid #3f3f46' }}>
+                  <div style={{ background: '#27272a', padding: '16px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                    <h4 style={{ margin: '0 0 12px 0', fontSize: '13px', color: '#c084fc', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <FaClock /> Saatlik Soru Dağılımı (Saat Dilimlerine Göre)
+                    </h4>
+                    <div style={{ display: 'flex', alignItems: 'flex-end', height: '75px', gap: '4px', paddingTop: '10px', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
                       {hourlyTraffic.map((count, hour) => {
                         const maxVal = Math.max(...hourlyTraffic, 1);
-                        const heightPercent = Math.max((count / maxVal) * 100, 8);
-                        const totalFiltered = filteredByDate.length || 1;
-                        const percentOfTotal = Math.round((count / totalFiltered) * 100);
-                        const hoverTitle = `${hour.toString().padStart(2, '0')}:00\n${count} soru\n%${percentOfTotal} toplam kullanım`;
+                        const heightPercent = Math.max((count / maxVal) * 55, count > 0 ? 15 : 4);
                         return (
-                          <div key={hour} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', height: '100%', justifyContent: 'flex-end', cursor: 'pointer' }} title={hoverTitle}>
-                            <span style={{ fontSize: '9px', color: '#a1a1aa', marginBottom: '2px' }}>{count > 0 ? count : ''}</span>
-                            <div style={{ width: '100%', background: count > 0 ? '#c084fc' : '#3f3f46', height: `${heightPercent}%`, borderRadius: '3px 3px 0 0', transition: 'background 0.2s' }} onMouseEnter={(e) => e.target.style.background = '#d8b4fe'} onMouseLeave={(e) => e.target.style.background = count > 0 ? '#c084fc' : '#3f3f46'}></div>
+                          <div key={hour} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', height: '100%', justifyContent: 'flex-end' }}>
+                            {count > 0 && <span style={{ fontSize: '9px', color: '#c084fc', marginBottom: '2px' }}>{count}</span>}
+                            <div style={{ width: '100%', height: `${heightPercent}px`, background: count > 0 ? '#c084fc' : 'rgba(255,255,255,0.05)', borderRadius: '3px 3px 0 0' }}></div>
                           </div>
                         );
                       })}
                     </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#a1a1aa', marginTop: '4px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#a1a1aa', marginTop: '6px' }}>
                       <span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span><span>23:00</span>
                     </div>
                   </div>
 
-                  {/* Günlük Trafik (Son 7 Gün) */}
-                  <div style={{ background: '#27272a', padding: '18px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.05)' }}>
-                    <h3 style={{ fontSize: '14px', marginBottom: '14px', color: '#fbbf24', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      📅 Günlük Trafik (Son 7 Günlük Dağılım)
-                    </h3>
-                    <div style={{ display: 'flex', alignItems: 'flex-end', gap: '12px', height: '80px', paddingBottom: '10px', borderBottom: '1px solid #3f3f46' }}>
-                      {Array.from({ length: 7 }).map((_, i) => {
-                        const date = new Date();
-                        date.setDate(date.getDate() - (6 - i));
-                        const dateStr = date.toISOString().split('T')[0];
-                        const dailyCount = rawHistory.filter(h => h.created_at && h.created_at.startsWith(dateStr)).length;
-                        const totalRaw = rawHistory.length || 1;
-                        const percentDaily = Math.round((dailyCount / totalRaw) * 100);
-                        const hoverTitle = `${date.toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' })}\n${dailyCount} soru\n%${percentDaily} toplam kullanım`;
+                  <div style={{ background: '#27272a', padding: '16px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                    <h4 style={{ margin: '0 0 12px 0', fontSize: '13px', color: '#fbbf24', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <FaCalendarAlt /> Günlere Göre Soru Dağılımı
+                    </h4>
+                    <div style={{ display: 'flex', alignItems: 'flex-end', height: '75px', gap: '12px', paddingTop: '10px', borderBottom: '1px solid rgba(255,255,255,0.1)', justifyContent: 'space-around' }}>
+                      {Object.entries(last7DaysCounts).map(([dayName, count]) => {
+                        const maxVal = Math.max(...Object.values(last7DaysCounts), 1);
+                        const heightPercent = Math.max((count / maxVal) * 60, count > 0 ? 15 : 4);
                         return (
-                          <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', height: '100%', justifyContent: 'flex-end', cursor: 'pointer' }} title={hoverTitle}>
-                            <span style={{ fontSize: '10px', color: '#a1a1aa', marginBottom: '4px' }}>{dailyCount > 0 ? dailyCount : ''}</span>
-                            <div style={{ width: '100%', background: dailyCount > 0 ? '#fbbf24' : '#3f3f46', height: `${Math.max((dailyCount / 10) * 100, 12)}%`, borderRadius: '4px 4px 0 0', transition: 'background 0.2s' }} onMouseEnter={(e) => e.target.style.background = '#fde68a'} onMouseLeave={(e) => e.target.style.background = dailyCount > 0 ? '#fbbf24' : '#3f3f46'}></div>
+                          <div key={dayName} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', height: '100%', justifyContent: 'flex-end' }}>
+                            {count > 0 && <span style={{ fontSize: '10px', color: '#fbbf24', marginBottom: '2px' }}>{count}</span>}
+                            <div style={{ width: '70%', height: `${heightPercent}px`, background: count > 0 ? '#fbbf24' : 'rgba(255,255,255,0.05)', borderRadius: '4px 4px 0 0' }}></div>
+                            <span style={{ fontSize: '11px', color: '#a1a1aa', marginTop: '6px' }}>{dayName}</span>
                           </div>
                         );
                       })}
                     </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#a1a1aa', marginTop: '6px', padding: '0 4px' }}>
-                      {Array.from({ length: 7 }).map((_, i) => {
-                        const date = new Date();
-                        date.setDate(date.getDate() - (6 - i));
-                        return <span key={i}>{date.toLocaleDateString('tr-TR', { weekday: 'short' })}</span>;
-                      })}
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
+                    <div style={{ background: '#27272a', padding: '18px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                      <h3 style={{ fontSize: '14px', marginBottom: '14px', color: '#4ade80', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <FaTrophy /> Model Kullanım Sıralaması
+                      </h3>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '180px', overflowY: 'auto' }}>
+                        {sortedModelsByUsage.map(([modelName, count], idx) => {
+                          const percentage = filteredByDate.length > 0 ? Math.round((count / filteredByDate.length) * 100) : 0;
+                          return (
+                            <div key={modelName} style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
+                                <span style={{ color: '#e4e4e7', fontFamily: 'monospace' }}>#{idx + 1} {modelName}</span>
+                                <span style={{ color: '#4ade80', fontWeight: 'bold' }}>{count} soru (%{percentage})</span>
+                              </div>
+                              <div style={{ width: '100%', background: '#3f3f46', height: '8px', borderRadius: '4px', overflow: 'hidden' }}>
+                                <div style={{ width: `${percentage}%`, background: '#4ade80', height: '100%', borderRadius: '4px' }}></div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <div style={{ background: '#27272a', padding: '18px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                      <h3 style={{ fontSize: '14px', marginBottom: '14px', color: '#facc15', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <FaCoins /> Token Tüketim Sıralaması
+                      </h3>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '180px', overflowY: 'auto' }}>
+                        {sortedModelsByToken.map(([modelName, totalTok], idx) => {
+                          const maxTok = Math.max(...Object.values(modelTokens), 1);
+                          const percentage = Math.round((totalTok / maxTok) * 100);
+                          return (
+                            <div key={modelName} style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
+                                <span style={{ color: '#e4e4e7', fontFamily: 'monospace' }}>#{idx + 1} {modelName}</span>
+                                <span style={{ color: '#facc15', fontWeight: 'bold' }}>{totalTok.toLocaleString('tr-TR')} token</span>
+                              </div>
+                              <div style={{ width: '100%', background: '#3f3f46', height: '8px', borderRadius: '4px', overflow: 'hidden' }}>
+                                <div style={{ width: `${percentage}%`, background: '#facc15', height: '100%', borderRadius: '4px' }}></div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <div style={{ background: '#27272a', padding: '18px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                      <h3 style={{ fontSize: '14px', marginBottom: '14px', color: '#60a5fa', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <FaBolt /> Model Verimlilik (Token/sn)
+                      </h3>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '180px', overflowY: 'auto' }}>
+                        {modelEfficiency.map((item, idx) => (
+                          <div key={item.model} style={{ background: '#18181b', padding: '10px 12px', borderRadius: '10px', fontSize: '12px', display: 'flex', flexDirection: 'column', gap: '4px', borderLeft: `4px solid ${idx === 0 ? '#4ade80' : '#60a5fa'}` }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                              <span style={{ color: '#60a5fa', fontWeight: 'bold', fontFamily: 'monospace' }}>{item.model}</span>
+                              <span style={{ color: '#4ade80', fontWeight: 'bold' }}>{item.tokensPerSecond} t/sn</span>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', color: '#a1a1aa', fontSize: '10.5px' }}>
+                              <span>Süre: <strong style={{ color: '#e4e4e7' }}>{item.avgTime}s</strong> | Toplam Token: <strong style={{ color: '#c084fc' }}>{item.totalTokensCount}</strong></span>
+                              <span>Maliyet: <strong style={{ color: item.isModelFree ? '#4ade80' : '#f87171' }}>{item.estimatedCost}</strong></span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   </div>
 
-                </div>
-
-                {/* Soru Arama, Rozet ve Geçmiş */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
                       <h3 style={{ fontSize: '15px', margin: 0, color: '#e4e4e7', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <FaFilter /> Kullanıcı Soru ve Cevap Geçmişi ({filteredHistory.length})
+                        <FaFilter /> Soru-Cevap Geçmişi ({filteredHistory.length})
                       </h3>
-
-                      {adminSearchQuery.trim() && (
-                        <div style={{
-                          background: 'rgba(34, 197, 94, 0.15)', border: '1px solid rgba(34, 197, 94, 0.4)',
-                          color: '#4ade80', padding: '3px 10px', borderRadius: '20px', fontSize: '11px',
-                          display: 'flex', alignItems: 'center', gap: '6px', fontWeight: '500'
-                        }}>
-                          <span>🔍 Aranan: "{adminSearchQuery}"</span>
-                          <span 
-                            onClick={() => setAdminSearchQuery('')} 
-                            style={{ cursor: 'pointer', fontWeight: 'bold', fontSize: '13px', marginLeft: '2px' }}
-                            title="Aramayı Temizle"
-                          >
-                            ×
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                    
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-                      <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                        <FaSearch style={{ position: 'absolute', left: '10px', color: '#a1a1aa', fontSize: '12px' }} />
-                        <input 
-                          type="text"
-                          value={adminSearchQuery}
-                          onChange={(e) => setAdminSearchQuery(e.target.value)}
-                          placeholder="Soru ara (Örn: Uludağ)..."
-                          style={{
-                            background: '#27272a', color: 'white', border: '1px solid rgba(255,255,255,0.2)',
-                            padding: '6px 12px 6px 30px', borderRadius: '8px', fontSize: '12px', outline: 'none', width: '180px'
-                          }}
-                        />
-                      </div>
-
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <span style={{ fontSize: '12px', color: '#a1a1aa' }}>Kullanıcı:</span>
+                      
+                      <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
                         <select 
-                          value={selectedAdminUser} 
-                          onChange={(e) => setSelectedAdminUser(e.target.value)}
+                          value={selectedUserFilter}
+                          onChange={(e) => { setSelectedUserFilter(e.target.value); setAdminPage(1); }}
                           style={{
-                            background: '#27272a', color: 'white', border: '1px solid rgba(255,255,255,0.2)',
-                            padding: '6px 12px', borderRadius: '8px', fontSize: '12px', outline: 'none', cursor: 'pointer'
+                            background: '#18181b', color: 'white', border: '1px solid rgba(255,255,255,0.15)',
+                            padding: '6px 10px', borderRadius: '10px', outline: 'none', fontSize: '12px', cursor: 'pointer'
                           }}
                         >
                           <option value="ALL">Tüm Kullanıcılar</option>
-                          {uniqueUsers.map((u, idx) => (
-                            <option key={idx} value={u}>{u}</option>
+                          {uniqueUsersList.map(u => (
+                            <option key={u} value={u}>{u}</option>
                           ))}
                         </select>
+
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#a1a1aa' }}>
+                          <span>Kayıt:</span>
+                          <select 
+                            value={rowsPerPage} 
+                            onChange={(e) => { setRowsPerPage(Number(e.target.value)); setAdminPage(1); }}
+                            style={{ background: '#18181b', color: 'white', border: '1px solid rgba(255,255,255,0.1)', padding: '4px 8px', borderRadius: '6px', outline: 'none' }}
+                          >
+                            <option value={10}>10</option>
+                            <option value={25}>25</option>
+                            <option value={50}>50</option>
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div style={{ overflowX: 'auto', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px' }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '12px' }}>
+                        <thead>
+                          <tr style={{ background: '#1f1f23', color: '#4ade80', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+                            <th style={{ padding: '12px' }}>Query ID</th>
+                            <th style={{ padding: '12px' }}>Chat ID</th>
+                            <th style={{ padding: '12px' }}>Request ID</th>
+                            <th style={{ padding: '12px' }}>Soran</th>
+                            <th style={{ padding: '12px' }}>Model</th>
+                            <th style={{ padding: '12px' }}>Süre</th>
+                            <th style={{ padding: '12px' }}>Hız</th>
+                            <th style={{ padding: '12px' }}>Maliyet</th>
+                            <th style={{ padding: '12px' }}>Tarih</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {filteredHistory.length === 0 ? (
+                            <tr>
+                              <td colSpan="9" style={{ textAlign: 'center', padding: '20px', color: '#a1a1aa' }}>Kayıt bulunamadı.</td>
+                            </tr>
+                          ) : (
+                            filteredHistory
+                              .slice((adminPage - 1) * rowsPerPage, adminPage * rowsPerPage)
+                              .map((item, index) => {
+                                const globalQueryId = (adminPage - 1) * rowsPerPage + index + 1;
+                                const tokens = Number(item.total_tokens || 0);
+                                const timeSec = Number(item.sure || 0.1);
+                                const speed = timeSec > 0 ? Math.round(tokens / timeSec) : 0;
+                                
+                                let costRate = 0.000002;
+                                const isRowFree = (item.model_adi || '').includes('free') || (item.model_adi || '').includes('flash');
+                                if (isRowFree) costRate = 0.0;
+
+                                const costNum = tokens * costRate;
+                                const rowCostText = isRowFree ? "Free" : `$${costNum.toFixed(6)}`;
+
+                                return (
+                                  <tr 
+                                    key={item.id} 
+                                    onClick={() => setSelectedModalItem(item)}
+                                    title="Detayları görmek için tıklayın"
+                                    style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', background: '#18181b', cursor: 'pointer', transition: 'background 0.15s' }}
+                                    onMouseEnter={(e) => e.currentTarget.style.background = '#27272a'}
+                                    onMouseLeave={(e) => e.currentTarget.style.background = '#18181b'}
+                                  >
+                                    <td onClick={() => setSelectedModalItem(item)} style={{ padding: '12px', fontFamily: 'monospace', color: '#4ade80', cursor: 'pointer' }}>#{globalQueryId}</td>
+                                    <td onClick={() => setSelectedModalItem(item)} style={{ padding: '12px', fontFamily: 'monospace', color: '#c084fc', cursor: 'pointer' }}>{item.chat_id || 'N/A'}</td>
+                                    <td onClick={() => setSelectedModalItem(item)} style={{ padding: '12px', fontFamily: 'monospace', color: '#facc15', cursor: 'pointer' }}>{item.request_id || 'N/A'}</td>
+                                    <td onClick={() => setSelectedModalItem(item)} style={{ padding: '12px', color: '#e4e4e7', cursor: 'pointer' }}>{item.kullanici_adi}</td>
+                                    <td onClick={() => setSelectedModalItem(item)} style={{ padding: '12px', color: '#60a5fa', cursor: 'pointer' }}>{item.model_adi}</td>
+                                    <td onClick={() => setSelectedModalItem(item)} style={{ padding: '12px', color: '#facc15', cursor: 'pointer' }}>{item.sure}s</td>
+                                    <td onClick={() => setSelectedModalItem(item)} style={{ padding: '12px', color: '#4ade80', cursor: 'pointer' }}>{speed} t/sn</td>
+                                    <td onClick={() => setSelectedModalItem(item)} style={{ padding: '12px', color: isRowFree ? '#4ade80' : '#f87171', cursor: 'pointer' }}>{rowCostText}</td>
+                                    <td onClick={() => setSelectedModalItem(item)} style={{ padding: '12px', color: '#a1a1aa', fontSize: '11px', cursor: 'pointer' }}>{item.created_at}</td>
+                                  </tr>
+                                );
+                              })
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px' }}>
+                      <div style={{ fontSize: '12px', color: '#a1a1aa' }}>
+                        Toplam {filteredHistory.length} kayıt | Sayfa {adminPage} / {Math.ceil(filteredHistory.length / rowsPerPage) || 1}
+                      </div>
+
+                      <div style={{ display: 'flex', gap: '6px' }}>
+                        {Array.from({ length: Math.ceil(filteredHistory.length / rowsPerPage) }, (_, i) => i + 1).map((pageNum) => (
+                          <button
+                            key={pageNum}
+                            onClick={() => setAdminPage(pageNum)}
+                            style={{
+                              background: adminPage === pageNum ? '#4ade80' : '#27272a',
+                              color: adminPage === pageNum ? '#000000' : '#e4e4e7',
+                              border: 'none', padding: '6px 12px', borderRadius: '6px', fontSize: '12px',
+                              fontWeight: 'bold', cursor: 'pointer'
+                            }}
+                          >
+                            {pageNum}
+                          </button>
+                        ))}
                       </div>
                     </div>
                   </div>
-
+                </>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                  <h3 style={{ fontSize: '15px', color: '#4ade80', margin: 0 }}>🤖 Sistemdeki Aktif Modeller</h3>
+                  
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                    {filteredHistory.length === 0 ? (
-                      <p style={{ fontSize: '13px', color: '#a1a1aa', textAlign: 'center', padding: '20px' }}>Aradığınız kriterlere uygun soru geçmişi bulunamadı.</p>
-                    ) : (
-                      filteredHistory.map((item) => {
-                        const highlightText = (text) => {
-                          if (!adminSearchQuery.trim()) return text;
-                          const parts = text.split(new RegExp(`(${adminSearchQuery})`, 'gi'));
-                          return parts.map((part, i) => 
-                            part.toLowerCase() === adminSearchQuery.toLowerCase() ? (
-                              <mark key={i} style={{ background: '#facc15', color: '#000', padding: '0 2px', borderRadius: '3px', fontWeight: 'bold' }}>{part}</mark>
-                            ) : part
-                          );
-                        };
-
-                        return (
-                          <div key={item.id} style={{
-                            background: '#27272a', padding: '14px 18px', borderRadius: '12px',
-                            border: '1px solid rgba(255,255,255,0.05)', display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '13px'
-                          }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', color: '#a1a1aa', fontSize: '11px' }}>
-                              <span>Soran: <strong style={{ color: '#4ade80' }}>{item.kullanici_adi}</strong> | Model: <strong style={{ color: '#60a5fa' }}>{item.model_adi || 'Bilinmiyor'}</strong> | Süre: <strong style={{ color: '#facc15' }}>{item.sure || 0}s</strong></span>
-                              <span>{item.created_at}</span>
-                            </div>
-                            <div><strong style={{ color: '#60a5fa' }}>Soru:</strong> {highlightText(item.prompt)}</div>
-                            <div><strong style={{ color: '#f87171' }}>Cevap:</strong> {highlightText(item.response)}</div>
+                    {modelsList.map((m) => (
+                      <div key={m.id} style={{
+                        background: '#27272a', padding: '12px 16px', borderRadius: '12px',
+                        display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: m.is_default_free ? '1px solid #4ade80' : '1px solid rgba(255,255,255,0.05)'
+                      }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span style={{ color: '#ffffff', fontWeight: 'bold', fontSize: '14px' }}>{m.model_name}</span>
+                            {m.is_default_free && (
+                              <span style={{ background: 'rgba(74, 222, 128, 0.2)', color: '#4ade80', fontSize: '11px', padding: '2px 8px', borderRadius: '6px', fontWeight: 'bold' }}>
+                                ⭐️ Ücretsiz Misafir Modeli
+                              </span>
+                            )}
                           </div>
-                        );
-                      })
-                    )}
+                          <span style={{ color: '#a1a1aa', fontSize: '12px', fontFamily: 'monospace' }}>{m.model_key}</span>
+                        </div>
+                        
+                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                          {!m.is_default_free && (
+                            <button 
+                              onClick={() => handleSetFreeModel(m.id)}
+                              style={{
+                                background: 'rgba(59, 130, 246, 0.15)', color: '#60a5fa', border: '1px solid rgba(59, 130, 246, 0.3)',
+                                padding: '6px 12px', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold'
+                              }}
+                            >
+                              Misafir Modeli Yap
+                            </button>
+                          )}
+                          
+                          <button 
+                            onClick={() => handleDeleteModel(m.id)}
+                            style={{
+                              background: 'rgba(239, 68, 68, 0.15)', color: '#f87171', border: '1px solid rgba(239, 68, 68, 0.3)',
+                              padding: '6px 12px', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold',
+                              display: 'flex', alignItems: 'center', gap: '4px'
+                            }}
+                          >
+                            <FaTrash /> Sil
+                          </button>
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                </div>
 
+                  <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '20px', marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                    <h3 style={{ fontSize: '15px', color: '#4ade80', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <FaSearch /> OpenRouter Model Kataloğundan Ekle
+                    </h3>
+                    
+                    <input 
+                      type="text" 
+                      placeholder="Model ara (Örn: Claude, GPT, Gemini, Llama)..." 
+                      value={modelSearchQuery}
+                      onChange={(e) => setModelSearchQuery(e.target.value)}
+                      style={{
+                        width: '100%', padding: '12px 16px', borderRadius: '12px', background: '#27272a',
+                        border: '1px solid rgba(255,255,255,0.15)', color: 'white', outline: 'none', fontSize: '13px', boxSizing: 'border-box'
+                      }}
+                    />
+
+                    <div style={{ maxHeight: '220px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', padding: '10px', background: '#121214' }}>
+                      {fetchingOpenRouter ? (
+                        <div style={{ textAlign: 'center', color: '#a1a1aa', padding: '20px', fontSize: '13px' }}>OpenRouter modelleri yükleniyor...</div>
+                      ) : filteredOpenRouterModels.length === 0 ? (
+                        <div style={{ textAlign: 'center', color: '#a1a1aa', padding: '20px', fontSize: '13px' }}>Model bulunamadı.</div>
+                      ) : (
+                        filteredOpenRouterModels.slice(0, 30).map((m) => {
+                          const isAlreadyAdded = modelsList.some(existing => existing.model_key === m.id);
+                          return (
+                            <div key={m.id} style={{
+                              background: '#27272a', padding: '10px 14px', borderRadius: '10px',
+                              display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '13px'
+                            }}>
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', maxWidth: '70%' }}>
+                                <span style={{ color: '#ffffff', fontWeight: 'bold' }}>{m.name}</span>
+                                <span style={{ color: '#a1a1aa', fontSize: '11px', fontFamily: 'monospace' }}>{m.id}</span>
+                              </div>
+
+                              <button
+                                disabled={isAlreadyAdded}
+                                onClick={() => handleAddOpenRouterModel(m)}
+                                style={{
+                                  background: isAlreadyAdded ? 'rgba(39, 39, 42, 0.5)' : '#4ade80',
+                                  color: isAlreadyAdded ? '#71717a' : '#000000',
+                                  border: 'none', padding: '6px 14px', borderRadius: '8px', fontWeight: 'bold',
+                                  cursor: isAlreadyAdded ? 'not-allowed' : 'pointer', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px'
+                                }}
+                              >
+                                {isAlreadyAdded ? <><FaCheckCircle /> Ekli</> : <><FaPlus /> Sisteme Ekle</>}
+                              </button>
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+                  </div>
+
+                  <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '20px', marginTop: '10px' }}>
+                    <h3 style={{ fontSize: '15px', color: '#facc15', marginBottom: '14px' }}>🔑 Misafirler İçin Sistem API Anahtarı Tanımla</h3>
+                    <form onSubmit={handleSaveSystemKey} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '12px', color: '#a1a1aa', marginBottom: '4px' }}>OpenRouter API Key (Misafirler için ortak kullanılacak):</label>
+                        <input 
+                          type="password" 
+                          placeholder="sk-or-v1-..." 
+                          value={systemApiKeyInput}
+                          onChange={(e) => setSystemApiKeyInput(e.target.value)}
+                          style={{
+                            width: '100%', padding: '10px 14px', borderRadius: '10px', background: '#27272a',
+                            border: '1px solid rgba(255,255,255,0.1)', color: 'white', outline: 'none', fontSize: '13px', fontFamily: 'monospace'
+                          }}
+                        />
+                      </div>
+                      <button 
+                        type="submit"
+                        style={{
+                          background: '#facc15', color: '#000000', border: 'none', padding: '12px',
+                          borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer', fontSize: '13px',
+                          marginTop: '6px', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '6px'
+                        }}
+                      >
+                        🔒 Anahtarı Şifrele ve Kaydet
+                      </button>
+                    </form>
+                  </div>
+
+                </div>
+              )}
+
+            </div>
+          </div>
+        </div>
+      )}
+
+      {selectedModalItem && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
+          background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(10px)',
+          display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 5000, padding: '20px'
+        }}>
+          <div style={{
+            background: '#18181b', border: '1px solid rgba(34,197,94,0.4)',
+            borderRadius: '20px', width: '100%', maxWidth: '700px', maxHeight: '80vh',
+            display: 'flex', flexDirection: 'column', overflow: 'hidden', color: '#f4f4f5',
+            boxShadow: '0 25px 50px rgba(0,0,0,0.9)'
+          }}>
+            <div style={{ padding: '18px 24px', background: '#27272a', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+              <div style={{ display: 'flex', gap: '10px', alignItems: 'center', fontSize: '13px', color: '#4ade80', fontFamily: 'monospace', flexWrap: 'wrap' }}>
+                <span>Query #{selectedModalItem.id}</span> 
+                <span>• Chat: {selectedModalItem.chat_id || 'N/A'}</span> 
+                <span style={{ color: '#facc15' }}>• {selectedModalItem.request_id || 'N/A'}</span>
+              </div>
+              <button onClick={() => setSelectedModalItem(null)} style={{ background: 'transparent', border: 'none', color: '#a1a1aa', cursor: 'pointer', fontSize: '18px' }}>
+                <FaTimes />
+              </button>
+            </div>
+            <div style={{ padding: '24px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '16px', fontSize: '14px' }}>
+              <div>
+                <strong style={{ color: '#60a5fa', display: 'block', marginBottom: '6px' }}>Soran Kullanıcı / Soru:</strong>
+                <div style={{ background: '#27272a', padding: '12px 16px', borderRadius: '10px', color: '#ffffff' }}>
+                  {selectedModalItem.prompt}
+                </div>
+              </div>
+              <div>
+                <strong style={{ color: '#4ade80', display: 'block', marginBottom: '6px' }}>Yapay Zeka Yanıtı:</strong>
+                <div style={{ background: '#27272a', padding: '14px 16px', borderRadius: '10px', color: '#f1f5f9', lineHeight: '1.6' }}>
+                  <ReactMarkdown>{selectedModalItem.response}</ReactMarkdown>
+                </div>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#a1a1aa', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '12px', flexWrap: 'wrap', gap: '8px' }}>
+                <span>Model: <strong style={{ color: '#e4e4e7' }}>{selectedModalItem.model_adi}</strong></span>
+                <span>Süre: <strong style={{ color: '#facc15' }}>{selectedModalItem.sure}s</strong></span>
+                <span>Token: <strong style={{ color: '#c084fc' }}>{selectedModalItem.total_tokens}</strong></span>
+                <span>Hız: <strong style={{ color: '#4ade80' }}>{Number(selectedModalItem.sure) > 0 ? Math.round(Number(selectedModalItem.total_tokens || 0) / Number(selectedModalItem.sure)) : 0} t/sn</strong></span>
+                <span>Maliyet: <strong style={{ color: ((selectedModalItem.model_adi || '').includes('free') || (selectedModalItem.model_adi || '').includes('flash')) ? '#4ade80' : '#f87171' }}>
+                  {((selectedModalItem.model_adi || '').includes('free') || (selectedModalItem.model_adi || '').includes('flash')) ? "Free" : `$${(Number(selectedModalItem.total_tokens || 0) * 0.000002).toFixed(6)}`}
+                </strong></span>
+                <span>Tarih: <strong style={{ color: '#e4e4e7' }}>{selectedModalItem.created_at}</strong></span>
               </div>
             </div>
           </div>
-        );
-      })()}
+        </div>
+      )}
 
     </div>
   )
