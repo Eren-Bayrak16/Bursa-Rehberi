@@ -11,8 +11,6 @@ import {
 } from 'react-icons/fa'
 
 const ADMIN_EMAIL = "bayrakeren228@gmail.com";
-// Yayina alirken gercek domain'e gore degistirin, ornek:
-// const API_BASE_URL = "https://bursarehberi.com/api";
 const API_BASE_URL = "http://172.16.12.253.nip.io:8000";
 
 function App() {
@@ -1165,7 +1163,7 @@ function App() {
                 onClick={async () => { 
                   setUserApiKey(''); 
                   setIsApiKeySaved(false); 
-                  setIsKeyInvalidOrDeleted(false);
+                  setIsKeyInvalidOrDeleted(false); 
                   setTempApiKeyInput(''); 
                   setApiKeyErrorMsg(''); 
                   setShowApiKeyModal(true); 
@@ -1292,7 +1290,7 @@ function App() {
               </button>
             </div>
 
-            <div style={{
+            <div style={{ 
               width: '100%', maxWidth: '1000px', background: 'rgba(24, 24, 27, 0.9)',
               backdropFilter: 'blur(20px)', border: '1px solid rgba(255, 255, 255, 0.15)',
               borderRadius: '24px', padding: '30px', boxShadow: '0 25px 50px rgba(0,0,0,0.8)',
