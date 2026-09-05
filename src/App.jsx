@@ -7,7 +7,7 @@ import { locationData } from './data/locationData';
 import { 
   FaPills, FaLandmark, FaBus, FaFutbol, FaMapMarkerAlt, FaGoogle, 
   FaRobot, FaUserCircle, FaSun, FaCloudSun, FaTree, FaMountain, 
-  FaWater, FaCity, FaTram, FaUtensils, FaStore, FaMosque, FaTheaterMasks, FaLeaf, FaPizzaSlice, FaShieldAlt, FaTimes, FaKey, FaCogs, FaInfoCircle, FaFilter, FaTrophy, FaBolt, FaPlus, FaTrash, FaSearch, FaClock, FaCalendarAlt, FaCheckCircle, FaEdit, FaCoins 
+  FaWater, FaCity, FaTram, FaUtensils, FaStore, FaMosque, FaTheaterMasks, FaLeaf, FaPizzaSlice, FaShieldAlt, FaTimes, FaKey, FaCogs, FaInfoCircle, FaFilter, FaTrophy, FaBolt, FaPlus, FaTrash, FaSearch, FaClock, FaCalendarAlt, FaCheckCircle, FaEdit, FaCoins, FaCopy, FaRedo, FaVolumeUp, FaStop, FaPencilAlt, FaCheck 
 } from 'react-icons/fa'
 
 const ADMIN_EMAIL = "bayrakeren228@gmail.com";
@@ -21,9 +21,16 @@ function App() {
   const [prompt, setPrompt] = useState('');
   const [chatHistory, setChatHistory] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [loadingEditIdx, setLoadingEditIdx] = useState(null);
   
   const [elapsedTime, setElapsedTime] = useState(0);
   const [errorMessage, setErrorMessage] = useState('');
+  const [showContextWarning, setShowContextWarning] = useState(false);
+  const [currentPercentage, setCurrentPercentage] = useState(0);
+  const [limitReached, setLimitReached] = useState(false);
+
+  const [weatherBursa, setWeatherBursa] = useState({ temp: '--', condition: 'Yükleniyor...' });
+  const [weatherUludag, setWeatherUludag] = useState({ temp: '--', condition: 'Yükleniyor...' });
 
   const [modelsList, setModelsList] = useState([]);
   const [selectedModel, setSelectedModel] = useState('google/gemini-2.5-flash');
@@ -32,6 +39,7 @@ function App() {
   const [showApiKeyModal, setShowApiKeyModal] = useState(false);
   const [tempApiKeyInput, setTempApiKeyInput] = useState('');
   const [apiKeyErrorMsg, setApiKeyErrorMsg] = useState('');
+  const [isKeyInvalidOrDeleted, setIsKeyInvalidOrDeleted] = useState(false);
   const [validatingKey, setValidatingKey] = useState(false);
 
   const [showAdminPanel, setShowAdminPanel] = useState(false);
@@ -52,17 +60,57 @@ function App() {
 
   const [systemApiKeyInput, setSystemApiKeyInput] = useState('');
   const [currentQuestion, setCurrentQuestion] = useState('');
+  const [speakingIdx, setSpeakingIdx] = useState(null);
+  
+  const abortControllerRef = useRef(null);
   const chatEndRef = useRef(null);
 
   useEffect(() => {
     fetchModels();
     fetchOpenRouterCatalog();
+    fetchWeatherData();
     setCurrentChatId(Math.random().toString(36).substring(2, 10));
   }, []);
 
+  const fetchWeatherData = async () => {
+    try {
+      const resBursa = await fetch('https://api.open-meteo.com/v1/forecast?latitude=40.1826&longitude=29.0665&current=temperature_2m,weather_code');
+      const dataBursa = await resBursa.json();
+      if (dataBursa && dataBursa.current) {
+        setWeatherBursa({
+          temp: Math.round(dataBursa.current.temperature_2m),
+          condition: getWeatherDescription(dataBursa.current.weather_code)
+        });
+      }
+
+      const resUludagReal = await fetch('https://api.open-meteo.com/v1/forecast?latitude=40.0716&longitude=29.2211&current=temperature_2m,weather_code');
+      const dataUludag = await resUludagReal.json();
+      if (dataUludag && dataUludag.current) {
+        setWeatherUludag({
+          temp: Math.round(dataUludag.current.temperature_2m),
+          condition: getWeatherDescription(dataUludag.current.weather_code)
+        });
+      }
+    } catch (err) {
+      setWeatherBursa({ temp: '30', condition: 'Açık' });
+      setWeatherUludag({ temp: '16', condition: 'Serin' });
+    }
+  };
+
+  const getWeatherDescription = (code) => {
+    if (code === 0) return 'Açık';
+    if ([1, 2, 3].includes(code)) return 'Parçalı Bulutlu';
+    if ([45, 48].includes(code)) return 'Sisli';
+    if ([51, 53, 55, 56, 57, 61, 63, 65].includes(code)) return 'Yağmurlu';
+    if ([71, 73, 75, 77].includes(code)) return 'Karlı';
+    return 'Açık';
+  };
+
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [chatHistory, loading]);
+    if (loadingEditIdx === null) {
+      chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [chatHistory, loading, loadingEditIdx]);
 
   const fetchModels = async () => {
     try {
@@ -97,7 +145,7 @@ function App() {
 
   useEffect(() => {
     let interval = null;
-    if (loading) {
+    if (loading || loadingEditIdx !== null) {
       setElapsedTime(0);
       interval = setInterval(() => {
         setElapsedTime((prevTime) => Number((prevTime + 0.1).toFixed(1)));
@@ -106,10 +154,12 @@ function App() {
       clearInterval(interval);
     }
     return () => clearInterval(interval);
-  }, [loading]);
+  }, [loading, loadingEditIdx]);
 
   const loginWithGoogle = useGoogleLogin({
     onSuccess: async (credentialResponse) => {
+      setErrorMessage('');
+      setCurrentChatId(Math.random().toString(36).substring(2, 10));
       try {
         const res = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
           headers: { Authorization: `Bearer ${credentialResponse.access_token}` },
@@ -124,16 +174,19 @@ function App() {
           if (keyData.api_key && keyData.api_key.trim() !== '') {
             setUserApiKey(keyData.api_key);
             setIsApiKeySaved(true);
+            setIsKeyInvalidOrDeleted(false);
             setShowApiKeyModal(false);
           } else {
             setUserApiKey('');
             setIsApiKeySaved(false);
+            setIsKeyInvalidOrDeleted(false);
             setApiKeyErrorMsg('');
             setShowApiKeyModal(true);
           }
         } catch (keyErr) {
           setUserApiKey('');
           setIsApiKeySaved(false);
+          setIsKeyInvalidOrDeleted(false);
           setApiKeyErrorMsg('');
           setShowApiKeyModal(true);
         }
@@ -141,6 +194,8 @@ function App() {
       } catch (err) {
         setUserEmail("bayrakeren228@gmail.com");
         setUserApiKey('');
+        setIsApiKeySaved(false);
+        setIsKeyInvalidOrDeleted(false);
         setApiKeyErrorMsg('');
         setShowApiKeyModal(true);
       }
@@ -189,11 +244,24 @@ function App() {
         return;
       }
 
+      await fetch(`${API_BASE_URL}/api/ask`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          prompt: "Test",
+          kullanici_adi: userEmail,
+          user_api_key: trimmedKey,
+          chat_id: currentChatId
+        }),
+      });
+
       setUserApiKey(trimmedKey);
       setIsApiKeySaved(true);
+      setIsKeyInvalidOrDeleted(false);
       setShowApiKeyModal(false);
       setTempApiKeyInput('');
       setApiKeyErrorMsg('');
+      setErrorMessage('');
       alert("API Anahtarınız başarıyla doğrulandı ve kaydedildi!");
 
     } catch (err) {
@@ -203,18 +271,62 @@ function App() {
     }
   };
 
-  const handleAskAI = async (textToAsk = prompt) => {
+  const handleCopyText = (text) => {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(() => {
+        alert("Metin panoya kopyalandı!");
+      }).catch(() => {
+        fallbackCopyText(text);
+      });
+    } else {
+      fallbackCopyText(text);
+    }
+  };
+
+  const fallbackCopyText = (text) => {
+    const textArea = document.createElement("textarea");
+    textArea.value = text;
+    textArea.style.position = "fixed";
+    document.body.appendChild(textArea);
+    textArea.focus();
+    textArea.select();
+    try {
+      document.execCommand('copy');
+      alert("Metin panoya kopyalandı!");
+    } catch (err) {
+      alert("Kopyalanamadı.");
+    }
+    document.body.removeChild(textArea);
+  };
+
+  const handleStopGeneration = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    setLoading(false);
+    setLoadingEditIdx(null);
+    setErrorMessage("Yapay zeka yanıtı durduruldu.");
+  };
+
+  const handleAskAI = async (textToAsk = prompt, editIdx = null) => {
+    if (limitReached) return;
     const finalPrompt = textToAsk || prompt;
     if (!finalPrompt.trim()) return;
-    
+
     if (isLoggedIn && (!userApiKey || !userApiKey.trim())) {
-      setErrorMessage("API anahtarınız bulunamadı, silinmiş veya geçersiz hale gelmiş. Lütfen geçerli bir OpenRouter API anahtarı girin.");
+      setIsKeyInvalidOrDeleted(true);
       setShowApiKeyModal(true);
       return;
     }
     
-    setLoading(true);
+    if (editIdx !== null) {
+      setLoadingEditIdx(editIdx);
+    } else {
+      setLoading(true);
+    }
     setErrorMessage('');
+
+    abortControllerRef.current = new AbortController();
 
     if (isLoggedIn && userApiKey) {
       try {
@@ -222,14 +334,16 @@ function App() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ api_key: userApiKey }),
+          signal: abortControllerRef.current.signal,
         });
         
         if (!testRes.ok) {
           setUserApiKey('');
           setIsApiKeySaved(false);
           setLoading(false);
+          setLoadingEditIdx(null);
+          setIsKeyInvalidOrDeleted(true);
           setShowApiKeyModal(true);
-          setErrorMessage("API anahtarınız OpenRouter'dan silinmiş veya geçersiz hale gelmiş. Lütfen yeni bir anahtar girin.");
           
           await fetch(`${API_BASE_URL}/api/clear-key?email=${encodeURIComponent(userEmail)}`, {
             method: 'POST'
@@ -237,19 +351,132 @@ function App() {
           return;
         }
       } catch (err) {
+        if (err.name === 'AbortError') return;
       }
     }
 
     const newQuestion = finalPrompt;
-    setCurrentQuestion(newQuestion);
+    if (editIdx === null) {
+      setCurrentQuestion(newQuestion);
+    }
     setPrompt('');
+
+    let baseHistory = editIdx !== null ? chatHistory.slice(0, editIdx) : chatHistory;
+
+    let formattedMessages = [];
+    baseHistory.forEach(item => {
+      formattedMessages.push({ role: 'user', content: item.prompt });
+      formattedMessages.push({ role: 'assistant', content: item.response });
+    });
+    formattedMessages.push({ role: 'user', content: newQuestion });
 
     try {
       const res = await fetch(`${API_BASE_URL}/api/ask`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
-          prompt: newQuestion,
+          messages: formattedMessages,
+          kullanici_adi: isLoggedIn ? userEmail : 'Misafir',
+          user_api_key: isLoggedIn ? userApiKey : '', 
+          model_secimi: isLoggedIn ? selectedModel : '', 
+          chat_id: currentChatId
+        }),
+        signal: abortControllerRef.current.signal,
+      });
+      
+      const data = await res.json();
+      
+      if (res.ok) {
+        setIsApiKeySaved(true);
+        setIsKeyInvalidOrDeleted(false);
+        const newEntry = { prompt: newQuestion, response: data.response, isEditing: false, editText: '' };
+        
+        setChatHistory([...baseHistory, newEntry]);
+        setCurrentQuestion('');
+
+        if (data.context_percentage !== undefined) {
+          setCurrentPercentage(data.context_percentage);
+        }
+
+        if (data.context_percentage >= 100) {
+          setLimitReached(true);
+          setShowContextWarning(false);
+        } else if (data.context_warning) {
+          setShowContextWarning(true);
+        }
+      } else {
+        let rawDetail = data.detail || '';
+        let userFriendlyMsg = 'Şu anda yapay zeka servislerinde geçici bir yoğunluk yaşanıyor. Lütfen biraz sonra tekrar deneyin.';
+        
+        if (res.status === 402 || rawDetail.toLowerCase().includes('credits') || rawDetail.toLowerCase().includes('balance') || rawDetail.toLowerCase().includes('insufficient')) {
+          userFriendlyMsg = 'OpenRouter hesabınızda bu işlem için yeterli bakiye veya kredi kalmadı. Lütfen hesabınızı kontrol edin.';
+          setErrorMessage(userFriendlyMsg);
+        } else if (res.status === 401 || rawDetail.includes('401') || rawDetail.toLowerCase().includes('key') || rawDetail.toLowerCase().includes('unauthorized') || rawDetail.toLowerCase().includes('geçersiz') || rawDetail.toLowerCase().includes('silinmiş') || rawDetail.toLowerCase().includes('auth') || rawDetail.toLowerCase().includes('not found')) {
+          userFriendlyMsg = 'OpenRouter API anahtarınız silinmiş veya geçersiz hale gelmiş. Lütfen yeni bir anahtar girin.';
+          setUserApiKey(''); 
+          setIsApiKeySaved(false);
+          setErrorMessage(userFriendlyMsg);
+          if (isLoggedIn) {
+            setIsKeyInvalidOrDeleted(true);
+            setShowApiKeyModal(true);
+          }
+        } else if (rawDetail.includes('Sistemde misafir API anahtarı tanımlanmamış')) {
+          userFriendlyMsg = 'Sistemde misafir API anahtarı tanımlanmamış. Lütfen admin panelinden sistem API anahtarını girin.';
+          setErrorMessage(userFriendlyMsg);
+        } else if (rawDetail) {
+          userFriendlyMsg = rawDetail;
+          setErrorMessage(userFriendlyMsg);
+        } else {
+          setErrorMessage(userFriendlyMsg);
+        }
+      }
+    } catch (err) {
+      if (err.name !== 'AbortError') {
+        setErrorMessage('Sunucuya bağlanılamadı. Lütfen internet bağlantınızı veya backend servisinin açık olduğunu kontrol edin.');
+      }
+    } finally {
+      setLoading(false);
+      setLoadingEditIdx(null);
+    }
+  };
+
+  const handleEditSubmit = (idx, textToSubmit) => {
+    const finalEditText = textToSubmit !== undefined ? textToSubmit : chatHistory[idx].editText;
+    if (!finalEditText || !finalEditText.trim()) return;
+
+    const updated = [...chatHistory];
+    updated[idx] = {
+      ...updated[idx],
+      prompt: finalEditText.trim(),
+      isEditing: false,
+      editText: ''
+    };
+    setChatHistory(updated);
+
+    handleAskAI(finalEditText.trim(), idx);
+  };
+
+  const handleRequestSummary = async () => {
+    setShowContextWarning(false);
+    setLoading(true);
+    setErrorMessage('');
+
+    let summaryPromptMessages = [];
+    chatHistory.forEach(item => {
+      summaryPromptMessages.push({ role: 'user', content: item.prompt });
+      summaryPromptMessages.push({ role: 'assistant', content: item.response });
+    });
+    summaryPromptMessages.push({ 
+      role: 'user', 
+      content: "Lütfen yukarıdaki tüm konuşma geçmişimizi detaylı bir şekilde özetle." 
+    });
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/ask`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          messages: summaryPromptMessages,
           kullanici_adi: isLoggedIn ? userEmail : 'Misafir',
           user_api_key: isLoggedIn ? userApiKey : '', 
           model_secimi: isLoggedIn ? selectedModel : '', 
@@ -258,39 +485,30 @@ function App() {
       });
       
       const data = await res.json();
-      
       if (res.ok) {
-        setIsApiKeySaved(true);
-        setChatHistory(prev => [...prev, { prompt: newQuestion, response: data.response }]);
-        setCurrentQuestion('');
+        setChatHistory(prev => [...prev, { prompt: "Konuşmanın özetini çıkarır mısın?", response: data.response, isEditing: false, editText: '' }]);
+        setLimitReached(true);
       } else {
-        let rawDetail = data.detail || '';
-        let userFriendlyMsg = 'Şu anda yapay zeka servislerinde geçici bir yoğunluk yaşanıyor. Lütfen biraz sonra tekrar deneyin.';
-        
-        if (rawDetail.includes('401') || rawDetail.toLowerCase().includes('key') || rawDetail.toLowerCase().includes('geçersiz') || rawDetail.toLowerCase().includes('unauthorized') || rawDetail.includes('bulunamadı veya silinmiş') || rawDetail.toLowerCase().includes('auth') || rawDetail.toLowerCase().includes('not found')) {
-          userFriendlyMsg = 'API anahtarınız bulunamadı, silinmiş veya geçersiz hale gelmiş. Lütfen geçerli bir OpenRouter API anahtarı girin.';
-          setUserApiKey(''); 
-          setIsApiKeySaved(false);
-          if (isLoggedIn) {
-            setShowApiKeyModal(true);
-          }
-        } else if (rawDetail.includes('Sistemde misafir API anahtarı tanımlanmamış')) {
-          userFriendlyMsg = 'Sistemde misafir API anahtarı tanımlanmamış. Lütfen admin panelinden sistem API anahtarını girin.';
-        } else if (rawDetail.includes('requires more credits') || rawDetail.includes('can only afford') || rawDetail.includes('credits') || rawDetail.includes('balance') || rawDetail.includes('insufficient')) {
-          userFriendlyMsg = 'OpenRouter hesabınızda bu model/işlem için yeterli bakiye veya kredi kalmadı. Lütfen hesabınızı kontrol edin.';
-        } else if (rawDetail) {
-          userFriendlyMsg = rawDetail;
-        }
-        setErrorMessage(userFriendlyMsg);
+        setErrorMessage("Özet oluşturulamadı.");
       }
     } catch (err) {
-      setErrorMessage('Sunucuya bağlanılamadı. Lütfen internet bağlantınızı veya backend servisinin açık olduğunu kontrol edin.');
+      setErrorMessage("Sunucu bağlantı hatası.");
     } finally {
       setLoading(false);
     }
   };
 
+  const handleStartNewSession = () => {
+    setChatHistory([]);
+    setCurrentChatId(Math.random().toString(36).substring(2, 10));
+    setShowContextWarning(false);
+    setLimitReached(false);
+    setCurrentPercentage(0);
+    setPrompt('');
+  };
+
   const handlePresetClick = (soruMetni) => {
+    if (limitReached) return;
     setSelectedLocation(null); 
     setPrompt(soruMetni);
     handleAskAI(soruMetni);
@@ -302,11 +520,14 @@ function App() {
     setUserApiKey('');
     setIsApiKeySaved(false);
     setShowApiKeyModal(false);
+    setIsKeyInvalidOrDeleted(false);
     setPrompt('');
     setChatHistory([]);
     setErrorMessage('');
     setShowAdminPanel(false);
     setSelectedLocation(null);
+    setLimitReached(false);
+    setCurrentPercentage(0);
   };
 
   const fetchAdminStats = async () => {
@@ -324,7 +545,7 @@ function App() {
     }
   };
 
-  const handleAddOpenRouterModel = async (modelObj) => {
+  const addModelToSystem = async (modelObj) => {
     try {
       const res = await fetch(`${API_BASE_URL}/api/models?email=${encodeURIComponent(userEmail)}`, {
         method: 'POST',
@@ -354,7 +575,7 @@ function App() {
       });
       const data = await res.json();
       if (res.ok) {
-        alert("Misafirler için varsayılan ücretsiz model güncellendi!");
+        alert("Misafir modeli ayarı güncellendi!");
         fetchModels();
       } else {
         alert("Hata: " + (data.detail || "Güncellenemedi"));
@@ -365,6 +586,10 @@ function App() {
   };
 
   const handleDeleteModel = async (modelId) => {
+    if (modelsList.length <= 1) {
+      alert("Sistemde en az 1 model kalması zorunludur. Son model silinemez!");
+      return;
+    }
     if (!window.confirm("Bu modeli silmek istediğinize emin misiniz?")) return;
 
     try {
@@ -553,7 +778,7 @@ function App() {
           <li><a href="#top" onClick={(e) => { e.preventDefault(); setSelectedLocation("Uludağ"); }}><FaMountain /> Uludağ</a></li>
           <li><a href="#top" onClick={(e) => { e.preventDefault(); setSelectedLocation("Mudanya"); }}><FaMapMarkerAlt /> Mudanya</a></li>
           <li><a href="#top" onClick={(e) => { e.preventDefault(); setSelectedLocation("Teleferik"); }}><FaTram /> {lang === 'TR' ? 'Teleferik' : 'Cable Car'}</a></li>
-          <li><a href="#top" onClick={(e) => { e.preventDefault(); setSelectedLocation("Botanic Park"); }}><FaTree /> Botanic Park</a></li>
+          <li><a href="#top" onClick={(e) => { e.preventDefault(); setSelectedLocation("Botanic Park"); }}><FaTree /> Botanik Park</a></li>
           <li><a href="#top" onClick={(e) => { e.preventDefault(); setSelectedLocation("Suuçtu Şelalesi"); }}><FaWater /> {lang === 'TR' ? 'Suuçtu Şelalesi' : 'Suuctu Waterfall'}</a></li>
         </ul>
 
@@ -579,11 +804,11 @@ function App() {
           <div className="weather-title">{lang === 'TR' ? 'HAVA DURUMU' : 'WEATHER'}</div>
           <div className="weather-item">
             <FaSun style={{ color: '#fbbf24', fontSize: '14px' }} />
-            <span>Bursa <strong>32°C</strong> - Açık</span>
+            <span>Bursa: <strong>{weatherBursa.temp}°C</strong> - {weatherBursa.condition}</span>
           </div>
           <div className="weather-item">
             <FaCloudSun style={{ color: '#fcd34d', fontSize: '14px' }} />
-            <span>Uludağ: <strong>16°C</strong> •</span>
+            <span>Uludağ: <strong>{weatherUludag.temp}°C</strong> - {weatherUludag.condition}</span>
           </div>
         </div>
       </aside>
@@ -593,6 +818,19 @@ function App() {
           <button className={lang === 'TR' ? 'lang-btn active' : 'lang-btn'} onClick={() => setLang('TR')}>TR</button>
           <button className={lang === 'EN' ? 'lang-btn active' : 'lang-btn'} onClick={() => setLang('EN')}>EN</button>
         </div>
+
+        {limitReached && (
+          <button 
+            onClick={handleStartNewSession}
+            style={{
+              background: '#4ade80', color: '#000', border: 'none', padding: '8px 14px',
+              borderRadius: '12px', cursor: 'pointer', fontWeight: 'bold', display: 'flex',
+              alignItems: 'center', gap: '6px', fontSize: '12px', boxShadow: '0 4px 12px rgba(74,222,128,0.3)'
+            }}
+          >
+            ✨ Yeni Oturuma Başla
+          </button>
+        )}
 
         {isLoggedIn && userEmail === ADMIN_EMAIL && (
           <button 
@@ -621,52 +859,235 @@ function App() {
 
       <div className="hero-content" style={{ display: 'flex', flexDirection: 'column', justifyContent: chatHistory.length > 0 || loading ? 'flex-end' : 'center', height: '100%', paddingBottom: '20px', position: 'relative', boxSizing: 'border-box' }}>
         
+        {showContextWarning && !limitReached && (
+          <div style={{
+            background: 'rgba(24, 24, 27, 0.95)', backdropFilter: 'blur(15px)', 
+            border: '1px solid rgba(59, 130, 246, 0.5)', padding: '16px 20px', 
+            borderRadius: '16px', color: '#f1f5f9', fontSize: '13px',
+            display: 'flex', flexDirection: 'column', gap: '12px', width: '90%', maxWidth: '900px', 
+            margin: '0 auto 12px auto', boxSizing: 'border-box', boxShadow: '0 10px 30px rgba(0,0,0,0.6)'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#60a5fa', fontWeight: 'bold' }}>
+              <FaRobot /> Sohbet Hafızası Uyarısı (%{currentPercentage} Doluluk)
+            </div>
+            <p style={{ margin: 0, color: '#d4d4d8', lineHeight: '1.5' }}>
+              Konuşma geçmişimiz hafıza sınırına yaklaştı. Konuşmanın tamamının özetini alıp yeni oturuma geçmek ister misiniz?
+            </p>
+            <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+              <button 
+                onClick={handleRequestSummary}
+                style={{ background: '#2563eb', color: '#fff', border: 'none', padding: '8px 14px', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}
+              >
+                <span>📝</span> Konuşmanın Özetini İste
+              </button>
+              <button 
+                onClick={handleStartNewSession}
+                style={{ background: 'rgba(34, 197, 94, 0.2)', border: '1px solid rgba(34, 197, 94, 0.4)', color: '#4ade80', padding: '8px 14px', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer', fontSize: '12px' }}
+              >
+                ✨ Doğrudan Yeni Oturuma Başla
+              </button>
+              <button 
+                onClick={() => setShowContextWarning(false)}
+                style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.2)', color: '#a1a1aa', padding: '8px 12px', borderRadius: '10px', cursor: 'pointer', fontSize: '12px', marginLeft: 'auto' }}
+              >
+                Kapat
+              </button>
+            </div>
+          </div>
+        )}
+
         {(chatHistory.length > 0 || loading) && (
-          <div style={{ flex: 1, overflowY: 'auto', width: '100%', maxWidth: '900px', margin: '0 auto', padding: '20px 10px', display: 'flex', flexDirection: 'column', gap: '16px', maxHeight: 'calc(100vh - 220px)' }}>
+          <div style={{ flex: 1, overflowY: 'auto', width: '100%', maxWidth: '900px', margin: '0 auto', padding: '20px 10px', display: 'flex', flexDirection: 'column', gap: '24px', maxHeight: 'calc(100vh - 220px)' }}>
             {chatHistory.map((chat, idx) => (
-              <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%' }}>
-                <div style={{ alignSelf: 'flex-end', background: '#2563eb', color: 'white', padding: '12px 18px', borderRadius: '16px 16px 0 16px', maxWidth: '80%', fontSize: '14px', wordBreak: 'break-word', boxShadow: '0 4px 15px rgba(37,99,235,0.3)' }}>
-                  {chat.prompt}
+              <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: '16px', width: '100%' }}>
+                
+                <div style={{ display: 'flex', gap: '12px', alignItems: 'center', alignSelf: 'flex-end', maxWidth: '85%' }}>
+                  {!chat.isEditing && (
+                    <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                      <button 
+                        onClick={() => handleCopyText(chat.prompt)}
+                        title="İstemi Kopyala"
+                        style={{ background: 'rgba(255,255,255,0.08)', border: 'none', borderRadius: '50%', width: '28px', height: '28px', color: '#a1a1aa', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                      >
+                        <FaCopy size={11} />
+                      </button>
+                      <button 
+                        onClick={() => {
+                          const updated = [...chatHistory];
+                          updated[idx].isEditing = true;
+                          updated[idx].editText = chat.prompt;
+                          setChatHistory(updated);
+                        }}
+                        title="İstemi Düzenle"
+                        style={{ background: 'rgba(255,255,255,0.08)', border: 'none', borderRadius: '50%', width: '28px', height: '28px', color: '#a1a1aa', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                      >
+                        <FaPencilAlt size={11} />
+                      </button>
+                    </div>
+                  )}
+
+                  {chat.isEditing ? (
+                    <div style={{ background: '#2563eb', padding: '8px 12px', borderRadius: '14px', display: 'flex', gap: '6px', alignItems: 'center', boxShadow: '0 4px 15px rgba(37,99,235,0.4)' }}>
+                      <input 
+                        type="text" 
+                        value={chat.editText !== undefined ? chat.editText : chat.prompt}
+                        onChange={(e) => {
+                          const updated = [...chatHistory];
+                          updated[idx].editText = e.target.value;
+                          setChatHistory(updated);
+                        }}
+                        onKeyDown={(e) => e.key === 'Enter' && handleEditSubmit(idx, chat.editText)}
+                        style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.3)', color: 'white', padding: '6px 10px', borderRadius: '8px', outline: 'none', fontSize: '14px', width: '220px' }}
+                        autoFocus
+                      />
+                      <button 
+                        onClick={() => handleEditSubmit(idx, chat.editText)}
+                        title="Onayla"
+                        style={{ background: '#4ade80', color: '#000', border: 'none', width: '26px', height: '26px', borderRadius: '50%', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                      >
+                        <FaCheck size={11} />
+                      </button>
+                      <button 
+                        onClick={() => {
+                          const updated = [...chatHistory];
+                          updated[idx].isEditing = false;
+                          setChatHistory(updated);
+                        }}
+                        title="İptal"
+                        style={{ background: 'rgba(0,0,0,0.2)', border: 'none', color: '#fff', width: '26px', height: '26px', borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                      >
+                        <FaTimes size={11} />
+                      </button>
+                    </div>
+                  ) : (
+                    <div style={{ background: '#2563eb', color: 'white', padding: '12px 18px', borderRadius: '18px 18px 4px 18px', fontSize: '14px', wordBreak: 'break-word', boxShadow: '0 4px 15px rgba(37,99,235,0.3)', lineHeight: '1.5' }}>
+                      {chat.prompt}
+                    </div>
+                  )}
+
+                  <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: '#3b82f6', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', flexShrink: 0, fontSize: '12px' }}>
+                    <FaUserCircle />
+                  </div>
                 </div>
                 
-                <div style={{ alignSelf: 'flex-start', background: 'rgba(18, 18, 20, 0.95)', backdropFilter: 'blur(20px)', border: '1px solid rgba(34, 197, 94, 0.4)', color: '#f1f5f9', padding: '16px 20px', borderRadius: '16px 16px 16px 0', maxWidth: '85%', fontSize: '14px', lineHeight: '1.6', boxShadow: '0 15px 35px rgba(0,0,0,0.6)' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#4ade80', fontWeight: 'bold', marginBottom: '8px', fontSize: '12px' }}>
-                    <FaRobot /> Yapay Zeka Rehberi
+                {loadingEditIdx === idx ? (
+                  <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start', alignSelf: 'flex-start', maxWidth: '85%' }}>
+                    <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: '#22c55e', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', flexShrink: 0, fontSize: '12px', marginTop: '2px' }}>
+                      <FaRobot />
+                    </div>
+                    <div style={{ 
+                      background: 'rgba(18, 18, 20, 0.95)', 
+                      backdropFilter: 'blur(20px)', 
+                      border: '1px solid rgba(74, 222, 128, 0.3)', 
+                      padding: '16px 20px', 
+                      borderRadius: '4px 18px 18px 18px', 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      gap: '12px', 
+                      color: '#f1f5f9', 
+                      boxShadow: '0 15px 35px rgba(0,0,0,0.6)'
+                    }}>
+                      <div style={{ color: '#4ade80', fontWeight: 'bold', fontSize: '12px' }}>
+                        Bursa AI Rehberi
+                      </div>
+                      <span style={{ color: '#9ca3af', fontSize: '13px', fontStyle: 'italic' }}>
+                        Yapay zeka düşünüyor...
+                      </span>
+                      <span style={{ color: '#facc15', fontSize: '12px', fontStyle: 'italic', background: 'rgba(250, 204, 21, 0.15)', padding: '3px 10px', borderRadius: '8px', fontWeight: 'bold', marginLeft: 'auto', minWidth: '45px', textAlign: 'center' }}>
+                        {elapsedTime.toFixed(1)}s
+                      </span>
+                    </div>
                   </div>
-                  <ReactMarkdown>{chat.response}</ReactMarkdown>
-                </div>
+                ) : (
+                  <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start', alignSelf: 'flex-start', maxWidth: '85%' }}>
+                    <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: '#22c55e', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', flexShrink: 0, fontSize: '12px', marginTop: '2px' }}>
+                      <FaRobot />
+                    </div>
+                    <div style={{ background: 'rgba(24, 24, 27, 0.95)', backdropFilter: 'blur(20px)', border: '1px solid rgba(255, 255, 255, 0.1)', color: '#f1f5f9', padding: '16px 20px', borderRadius: '4px 18px 18px 18px', fontSize: '14px', lineHeight: '1.7', boxShadow: '0 15px 35px rgba(0,0,0,0.5)', width: '100%' }}>
+                      <div style={{ color: '#4ade80', fontWeight: 'bold', marginBottom: '6px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        Bursa AI Rehberi
+                      </div>
+                      <ReactMarkdown>{chat.response}</ReactMarkdown>
+
+                      <div style={{ display: 'flex', gap: '16px', marginTop: '12px', borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '10px', alignItems: 'center' }}>
+                        <button 
+                          onClick={() => handleCopyText(chat.response)}
+                          title="Yanıtı Kopyala"
+                          style={{ background: 'transparent', border: 'none', color: '#a1a1aa', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px', fontSize: '12px', transition: 'color 0.2s' }}
+                        >
+                          <FaCopy /> Kopyala
+                        </button>
+                        <button 
+                          onClick={() => handleAskAI(chat.prompt)}
+                          title="Yeniden Sor"
+                          style={{ background: 'transparent', border: 'none', color: '#a1a1aa', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px', fontSize: '12px' }}
+                        >
+                          <FaRedo /> Yeniden Sor
+                        </button>
+                        <button 
+                          onClick={() => {
+                            if (speakingIdx === idx) {
+                              window.speechSynthesis.cancel();
+                              setSpeakingIdx(null);
+                            } else {
+                              window.speechSynthesis.cancel();
+                              const utterance = new SpeechSynthesisUtterance(chat.response);
+                              utterance.lang = 'tr-TR';
+                              utterance.onend = () => setSpeakingIdx(null);
+                              window.speechSynthesis.speak(utterance);
+                              setSpeakingIdx(idx);
+                            }
+                          }}
+                          title={speakingIdx === idx ? "Durdur" : "Sesli Oku"}
+                          style={{ background: 'transparent', border: 'none', color: speakingIdx === idx ? '#4ade80' : '#a1a1aa', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px', fontSize: '12px' }}
+                        >
+                          {speakingIdx === idx ? <><FaStop /> Durdur</> : <><FaVolumeUp /> Sesli Oku</>}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
               </div>
             ))}
 
-            {loading && (
+            {loading && loadingEditIdx === null && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', width: '100%' }}>
-                <div style={{ alignSelf: 'flex-end', background: '#2563eb', color: 'white', padding: '12px 18px', borderRadius: '16px 16px 0 16px', maxWidth: '80%', fontSize: '14px', wordBreak: 'break-word', boxShadow: '0 4px 15px rgba(37,99,235,0.3)' }}>
-                  {currentQuestion}
+                <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-end', alignSelf: 'flex-end', maxWidth: '85%' }}>
+                  <div style={{ background: '#2563eb', color: 'white', padding: '12px 18px', borderRadius: '18px 18px 4px 18px', fontSize: '14px', wordBreak: 'break-word', boxShadow: '0 4px 15px rgba(37,99,235,0.3)', lineHeight: '1.5' }}>
+                    {currentQuestion}
+                  </div>
+                  <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: '#3b82f6', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', flexShrink: 0, fontSize: '12px' }}>
+                    <FaUserCircle />
+                  </div>
                 </div>
 
-                <div style={{ 
-                  alignSelf: 'flex-start', 
-                  background: 'rgba(18, 18, 20, 0.95)', 
-                  backdropFilter: 'blur(20px)', 
-                  border: '1px solid rgba(74, 222, 128, 0.3)', 
-                  padding: '16px 20px', 
-                  borderRadius: '16px 16px 16px 0', 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  gap: '12px', 
-                  color: '#f1f5f9', 
-                  boxShadow: '0 15px 35px rgba(0,0,0,0.6)',
-                  maxWidth: '85%'
-                }}>
-                  <div style={{ color: '#4ade80', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 'bold', fontSize: '12px' }}>
-                    <FaRobot /> Yapay Zeka Rehberi
+                <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start', alignSelf: 'flex-start', maxWidth: '85%' }}>
+                  <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: '#22c55e', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', flexShrink: 0, fontSize: '12px', marginTop: '2px' }}>
+                    <FaRobot />
                   </div>
-                  <span style={{ color: '#9ca3af', fontSize: '13px', fontStyle: 'italic' }}>
-                    Yapay zeka düşünüyor...
-                  </span>
-                  <span style={{ color: '#facc15', fontSize: '12px', fontStyle: 'italic', background: 'rgba(250, 204, 21, 0.15)', padding: '3px 10px', borderRadius: '8px', fontWeight: 'bold', marginLeft: 'auto', minWidth: '45px', textAlign: 'center' }}>
-                    {elapsedTime.toFixed(1)}s
-                  </span>
+                  <div style={{ 
+                    background: 'rgba(24, 24, 27, 0.95)', 
+                    backdropFilter: 'blur(20px)', 
+                    border: '1px solid rgba(255, 255, 255, 0.1)', 
+                    padding: '16px 20px', 
+                    borderRadius: '4px 18px 18px 18px', 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: '12px', 
+                    color: '#f1f5f9', 
+                    boxShadow: '0 15px 35px rgba(0,0,0,0.5)'
+                  }}>
+                    <div style={{ color: '#4ade80', fontWeight: 'bold', fontSize: '12px' }}>
+                      Bursa AI Rehberi
+                    </div>
+                    <span style={{ color: '#9ca3af', fontSize: '13px', fontStyle: 'italic' }}>
+                      Yapay zeka düşünüyor...
+                    </span>
+                    <span style={{ color: '#facc15', fontSize: '12px', fontStyle: 'italic', background: 'rgba(250, 204, 21, 0.15)', padding: '3px 10px', borderRadius: '8px', fontWeight: 'bold', marginLeft: 'auto', minWidth: '45px', textAlign: 'center' }}>
+                      {elapsedTime.toFixed(1)}s
+                    </span>
+                  </div>
                 </div>
               </div>
             )}
@@ -716,6 +1137,7 @@ function App() {
                 onClick={async () => { 
                   setUserApiKey(''); 
                   setIsApiKeySaved(false); 
+                  setIsKeyInvalidOrDeleted(false);
                   setTempApiKeyInput(''); 
                   setApiKeyErrorMsg(''); 
                   setShowApiKeyModal(true); 
@@ -750,28 +1172,52 @@ function App() {
         <div className="action-buttons" style={{ flexDirection: 'column', width: '90%', maxWidth: '1200px', margin: '0 auto', alignItems: 'center', boxSizing: 'border-box' }}>
           <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '14px', maxWidth: '900px' }}>
             
-            <div style={{ display: 'flex', gap: '8px', width: '100%' }}>
-              <input 
-                type="text" 
-                value={prompt} 
-                onChange={(e) => setPrompt(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleAskAI()}
-                placeholder={lang === 'TR' ? "Bursa hakkında ne öğrenmek istiyorsun?" : "What do you want to learn about Bursa?"} 
-                style={{
-                  flex: 1, padding: '14px 20px', borderRadius: '20px',
-                  border: '1px solid rgba(255, 255, 255, 0.2)', background: 'rgba(0, 0, 0, 0.6)',
-                  color: 'white', outline: 'none', backdropFilter: 'blur(10px)', fontSize: '14px'
-                }}
-              />
-              <button 
-                className="btn btn-ai" 
-                onClick={() => handleAskAI()}
-                disabled={loading}
-                style={{ padding: '14px 24px', borderRadius: '20px', cursor: 'pointer', fontSize: '14px' }}
-              >
-                <FaRobot /> {lang === 'TR' ? 'Sor' : 'Ask'}
-              </button>
-            </div>
+            {limitReached ? (
+              <div style={{
+                background: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239, 68, 68, 0.4)',
+                padding: '16px 20px', borderRadius: '16px', color: '#f87171', fontSize: '14px',
+                textAlign: 'center', fontWeight: 'bold', width: '100%', boxSizing: 'border-box'
+              }}>
+                🔒 Konuşma limiti tamamlandı. Yeni bir oturuma başlayabilirsiniz.
+              </div>
+            ) : (
+              <div style={{ display: 'flex', gap: '8px', width: '100%' }}>
+                <input 
+                  type="text" 
+                  value={prompt} 
+                  onChange={(e) => setPrompt(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && !loading && handleAskAI()}
+                  placeholder={lang === 'TR' ? "Bursa hakkında ne öğrenmek istiyorsun?" : "What do you want to learn about Bursa?"} 
+                  style={{
+                    flex: 1, padding: '14px 20px', borderRadius: '20px',
+                    border: '1px solid rgba(255, 255, 255, 0.2)', background: 'rgba(0, 0, 0, 0.6)',
+                    color: 'white', outline: 'none', backdropFilter: 'blur(10px)', fontSize: '14px'
+                  }}
+                />
+
+                {loading ? (
+                  <button 
+                    onClick={handleStopGeneration}
+                    style={{
+                      background: '#ef4444', color: 'white', border: 'none',
+                      padding: '14px 24px', borderRadius: '20px', cursor: 'pointer',
+                      fontSize: '14px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px',
+                      boxShadow: '0 4px 15px rgba(239, 68, 68, 0.4)'
+                    }}
+                  >
+                    <FaStop /> {lang === 'TR' ? 'Durdur' : 'Stop'}
+                  </button>
+                ) : (
+                  <button 
+                    className="btn btn-ai" 
+                    onClick={() => handleAskAI()}
+                    style={{ padding: '14px 24px', borderRadius: '20px', cursor: 'pointer', fontSize: '14px' }}
+                  >
+                    <FaRobot /> {lang === 'TR' ? 'Sor' : 'Ask'}
+                  </button>
+                )}
+              </div>
+            )}
 
             {errorMessage && (
               <div style={{
@@ -785,72 +1231,6 @@ function App() {
             )}
           </div>
         </div>
-        
-        {showApiKeyModal && (
-          <div style={{
-            position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
-            background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(10px)',
-            display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 5000, padding: '20px'
-          }}>
-            <div style={{
-              background: '#18181b', border: '1px solid rgba(34,197,94,0.4)',
-              borderRadius: '20px', width: '100%', maxWidth: '520px', padding: '30px',
-              display: 'flex', flexDirection: 'column', gap: '20px', color: '#f4f4f5',
-              boxShadow: '0 25px 50px rgba(0,0,0,0.9)'
-            }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <h3 style={{ margin: 0, color: '#4ade80', fontSize: '18px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <FaKey /> OpenRouter API Anahtarı Doğrulama
-                </h3>
-                {isApiKeySaved && (
-                  <button onClick={() => { setShowApiKeyModal(false); setApiKeyErrorMsg(''); }} style={{ background: 'transparent', border: 'none', color: '#a1a1aa', cursor: 'pointer', fontSize: '18px' }}>
-                    <FaTimes />
-                  </button>
-                )}
-              </div>
-              <p style={{ fontSize: '13px', color: '#a1a1aa', margin: 0, lineHeight: '1.5' }}>
-                OpenRouter API anahtarınız <strong>sk-or-v1-</strong> ile başlamalı, tam olarak <strong>73 karakter</strong> olmalı ve geçerli bir OpenRouter anahtarı olmalıdır. Yanlış veya sahte anahtarlar kesinlikle kabul edilmez.
-              </p>
-              
-              <form onSubmit={handleSaveUserApiKey} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                <input 
-                  type="password"
-                  placeholder="sk-or-v1-..."
-                  value={tempApiKeyInput}
-                  onChange={(e) => setTempApiKeyInput(e.target.value)}
-                  style={{
-                    width: '100%', padding: '12px 16px', borderRadius: '12px', background: '#27272a',
-                    border: '1px solid rgba(255,255,255,0.2)', color: 'white', outline: 'none', fontSize: '14px', fontFamily: 'monospace',
-                    boxSizing: 'border-box'
-                  }}
-                />
-
-                {apiKeyErrorMsg && (
-                  <div style={{
-                    background: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239, 68, 68, 0.4)',
-                    padding: '10px 14px', borderRadius: '10px', color: '#f87171', fontSize: '12px',
-                    display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '500'
-                  }}>
-                    <span>⚠️</span> <span>{apiKeyErrorMsg}</span>
-                  </div>
-                )}
-
-                <button 
-                  type="submit"
-                  disabled={validatingKey}
-                  style={{
-                    background: '#4ade80', color: '#000000', border: 'none', padding: '12px',
-                    borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer', fontSize: '14px',
-                    display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '6px', marginTop: '4px',
-                    opacity: validatingKey ? 0.7 : 1
-                  }}
-                >
-                  {validatingKey ? '⏳ Doğrulanıyor...' : '🔒 Doğrula ve Güvenle Kaydet'}
-                </button>
-              </form>
-            </div>
-          </div>
-        )}
 
         {selectedLocation && locationData[selectedLocation] ? (
           <div style={{
@@ -970,6 +1350,87 @@ function App() {
           )
         )}
       </div>
+
+      {showApiKeyModal && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
+          background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(10px)',
+          display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 5000, padding: '20px'
+        }}>
+          <div style={{
+            background: '#18181b', border: '1px solid rgba(34,197,94,0.4)',
+            borderRadius: '20px', width: '100%', maxWidth: '520px', padding: '30px',
+            display: 'flex', flexDirection: 'column', gap: '20px', color: '#f4f4f5',
+            boxShadow: '0 25px 50px rgba(0,0,0,0.9)'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h3 style={{ margin: 0, color: '#4ade80', fontSize: '18px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <FaKey /> OpenRouter API Anahtarı Doğrulama
+              </h3>
+              <button 
+                onClick={() => { 
+                  setShowApiKeyModal(false); 
+                  setApiKeyErrorMsg(''); 
+                  setIsKeyInvalidOrDeleted(false);
+                  if (!userApiKey || !userApiKey.trim()) {
+                    handleLogout();
+                  }
+                }} 
+                style={{ background: 'transparent', border: 'none', color: '#a1a1aa', cursor: 'pointer', fontSize: '18px' }}
+              >
+                <FaTimes />
+              </button>
+            </div>
+
+            {isKeyInvalidOrDeleted ? (
+              <p style={{ fontSize: '13px', color: '#f87171', margin: 0, lineHeight: '1.5', fontWeight: 'bold' }}>
+                ⚠️ OpenRouter API anahtarınız silinmiş veya geçersiz hale gelmiş. Devam etmek için lütfen geçerli bir anahtar girin.
+              </p>
+            ) : (
+              <p style={{ fontSize: '13px', color: '#a1a1aa', margin: 0, lineHeight: '1.5' }}>
+                OpenRouter API anahtarınız <strong>sk-or-v1-</strong> ile başlamalı, tam olarak <strong>73 karakter</strong> olmalı ve geçerli bir OpenRouter anahtarı olmalıdır. Yanlış veya sahte anahtarlar kesinlikle kabul edilmez.
+              </p>
+            )}
+            
+            <form onSubmit={handleSaveUserApiKey} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <input 
+                type="password"
+                placeholder="sk-or-v1-..."
+                value={tempApiKeyInput}
+                onChange={(e) => setTempApiKeyInput(e.target.value)}
+                style={{
+                  width: '100%', padding: '12px 16px', borderRadius: '12px', background: '#27272a',
+                  border: '1px solid rgba(255,255,255,0.2)', color: 'white', outline: 'none', fontSize: '14px', fontFamily: 'monospace',
+                  boxSizing: 'border-box'
+                }}
+              />
+
+              {apiKeyErrorMsg && (
+                <div style={{
+                  background: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239, 68, 68, 0.4)',
+                  padding: '10px 14px', borderRadius: '10px', color: '#f87171', fontSize: '12px',
+                  display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '500'
+                }}>
+                  <span>⚠️</span> <span>{apiKeyErrorMsg}</span>
+                </div>
+              )}
+
+              <button 
+                type="submit"
+                disabled={validatingKey}
+                style={{
+                  background: '#4ade80', color: '#000000', border: 'none', padding: '12px',
+                  borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer', fontSize: '14px',
+                  display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '6px', marginTop: '4px',
+                  opacity: validatingKey ? 0.7 : 1
+                }}
+              >
+                {validatingKey ? '⏳ Doğrulanıyor...' : '🔒 Doğrula ve Güvenle Kaydet'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
 
       {showAdminPanel && adminStats && (
         <div style={{
@@ -1319,17 +1780,17 @@ function App() {
                         </div>
                         
                         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                          {!m.is_default_free && (
-                            <button 
-                              onClick={() => handleSetFreeModel(m.id)}
-                              style={{
-                                background: 'rgba(59, 130, 246, 0.15)', color: '#60a5fa', border: '1px solid rgba(59, 130, 246, 0.3)',
-                                padding: '6px 12px', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold'
-                              }}
-                            >
-                              Misafir Modeli Yap
-                            </button>
-                          )}
+                          <button 
+                            onClick={() => handleSetFreeModel(m.id)}
+                            style={{
+                              background: m.is_default_free ? 'rgba(239, 68, 68, 0.15)' : 'rgba(59, 130, 246, 0.15)',
+                              color: m.is_default_free ? '#f87171' : '#60a5fa',
+                              border: m.is_default_free ? '1px solid rgba(239, 68, 68, 0.3)' : '1px solid rgba(59, 130, 246, 0.3)',
+                              padding: '6px 12px', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold'
+                            }}
+                          >
+                            {m.is_default_free ? 'Misafir Modelini Kaldır' : 'Misafir Modeli Yap'}
+                          </button>
                           
                           <button 
                             onClick={() => handleDeleteModel(m.id)}
@@ -1382,7 +1843,7 @@ function App() {
 
                               <button
                                 disabled={isAlreadyAdded}
-                                onClick={() => handleAddOpenRouterModel(m)}
+                                onClick={() => addModelToSystem(m)}
                                 style={{
                                   background: isAlreadyAdded ? 'rgba(39, 39, 42, 0.5)' : '#4ade80',
                                   color: isAlreadyAdded ? '#71717a' : '#000000',
@@ -1444,11 +1905,11 @@ function App() {
         }}>
           <div style={{
             background: '#18181b', border: '1px solid rgba(34,197,94,0.4)',
-            borderRadius: '20px', width: '100%', maxWidth: '700px', maxHeight: '80vh',
+            borderRadius: '20px', width: '90vw', maxWidth: '900px', height: '85vh', maxHeight: '85vh',
             display: 'flex', flexDirection: 'column', overflow: 'hidden', color: '#f4f4f5',
             boxShadow: '0 25px 50px rgba(0,0,0,0.9)'
           }}>
-            <div style={{ padding: '18px 24px', background: '#27272a', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+            <div style={{ padding: '18px 24px', background: '#27272a', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.1)', flexShrink: 0 }}>
               <div style={{ display: 'flex', gap: '10px', alignItems: 'center', fontSize: '13px', color: '#4ade80', fontFamily: 'monospace', flexWrap: 'wrap' }}>
                 <span>Query #{selectedModalItem.id}</span> 
                 <span>• Chat: {selectedModalItem.chat_id || 'N/A'}</span> 
@@ -1458,20 +1919,20 @@ function App() {
                 <FaTimes />
               </button>
             </div>
-            <div style={{ padding: '24px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '16px', fontSize: '14px' }}>
+            <div style={{ padding: '28px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '20px', fontSize: '14px', flex: 1 }}>
               <div>
                 <strong style={{ color: '#60a5fa', display: 'block', marginBottom: '6px' }}>Soran Kullanıcı / Soru:</strong>
-                <div style={{ background: '#27272a', padding: '12px 16px', borderRadius: '10px', color: '#ffffff' }}>
+                <div style={{ background: '#27272a', padding: '14px 18px', borderRadius: '10px', color: '#ffffff' }}>
                   {selectedModalItem.prompt}
                 </div>
               </div>
               <div>
                 <strong style={{ color: '#4ade80', display: 'block', marginBottom: '6px' }}>Yapay Zeka Yanıtı:</strong>
-                <div style={{ background: '#27272a', padding: '14px 16px', borderRadius: '10px', color: '#f1f5f9', lineHeight: '1.6' }}>
+                <div style={{ background: '#27272a', padding: '16px 18px', borderRadius: '10px', color: '#f1f5f9', lineHeight: '1.7' }}>
                   <ReactMarkdown>{selectedModalItem.response}</ReactMarkdown>
                 </div>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#a1a1aa', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '12px', flexWrap: 'wrap', gap: '8px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#a1a1aa', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '16px', flexWrap: 'wrap', gap: '8px', marginTop: 'auto' }}>
                 <span>Model: <strong style={{ color: '#e4e4e7' }}>{selectedModalItem.model_adi}</strong></span>
                 <span>Süre: <strong style={{ color: '#facc15' }}>{selectedModalItem.sure}s</strong></span>
                 <span>Token: <strong style={{ color: '#c084fc' }}>{selectedModalItem.total_tokens}</strong></span>
