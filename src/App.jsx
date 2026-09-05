@@ -11,11 +11,14 @@ import {
 } from 'react-icons/fa'
 
 const ADMIN_EMAIL = "bayrakeren228@gmail.com";
+// Yayina alirken gercek domain'e gore degistirin, ornek:
+// const API_BASE_URL = "https://bursarehberi.com/api";
 const API_BASE_URL = "http://172.16.12.253.nip.io:8000";
 
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userEmail, setUserEmail] = useState('');
+  const [accessToken, setAccessToken] = useState('');
   const [lang, setLang] = useState('TR');
   
   const [prompt, setPrompt] = useState('');
@@ -160,16 +163,26 @@ function App() {
     onSuccess: async (credentialResponse) => {
       setErrorMessage('');
       setCurrentChatId(Math.random().toString(36).substring(2, 10));
+      const token = credentialResponse.access_token;
       try {
         const res = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
-          headers: { Authorization: `Bearer ${credentialResponse.access_token}` },
+          headers: { Authorization: `Bearer ${token}` },
         });
+        if (!res.ok) {
+          throw new Error('Google kullanıcı bilgisi alınamadı.');
+        }
         const data = await res.json();
-        const email = data.email || "bayrakeren228@gmail.com";
+        if (!data.email) {
+          throw new Error('Google hesabınızdan e-posta bilgisi alınamadı.');
+        }
+        const email = data.email;
         setUserEmail(email);
+        setAccessToken(token);
 
         try {
-          const keyRes = await fetch(`${API_BASE_URL}/api/get-key?email=${encodeURIComponent(email)}`);
+          const keyRes = await fetch(`${API_BASE_URL}/api/get-key`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
           const keyData = await keyRes.json();
           if (keyData.api_key && keyData.api_key.trim() !== '') {
             setUserApiKey(keyData.api_key);
@@ -192,12 +205,15 @@ function App() {
         }
 
       } catch (err) {
-        setUserEmail("bayrakeren228@gmail.com");
+        setErrorMessage('Google ile giriş yapılamadı. Lütfen tekrar deneyin.');
+        setUserEmail('');
+        setAccessToken('');
         setUserApiKey('');
         setIsApiKeySaved(false);
         setIsKeyInvalidOrDeleted(false);
         setApiKeyErrorMsg('');
-        setShowApiKeyModal(true);
+        setIsLoggedIn(false);
+        return;
       }
       setIsLoggedIn(true);
       setPrompt('');       
@@ -246,7 +262,7 @@ function App() {
 
       await fetch(`${API_BASE_URL}/api/ask`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
         body: JSON.stringify({ 
           prompt: "Test",
           kullanici_adi: userEmail,
@@ -345,8 +361,9 @@ function App() {
           setIsKeyInvalidOrDeleted(true);
           setShowApiKeyModal(true);
           
-          await fetch(`${API_BASE_URL}/api/clear-key?email=${encodeURIComponent(userEmail)}`, {
-            method: 'POST'
+          await fetch(`${API_BASE_URL}/api/clear-key`, {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${accessToken}` },
           });
           return;
         }
@@ -373,7 +390,10 @@ function App() {
     try {
       const res = await fetch(`${API_BASE_URL}/api/ask`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(isLoggedIn ? { Authorization: `Bearer ${accessToken}` } : {}),
+        },
         body: JSON.stringify({ 
           messages: formattedMessages,
           kullanici_adi: isLoggedIn ? userEmail : 'Misafir',
@@ -474,7 +494,10 @@ function App() {
     try {
       const res = await fetch(`${API_BASE_URL}/api/ask`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(isLoggedIn ? { Authorization: `Bearer ${accessToken}` } : {}),
+        },
         body: JSON.stringify({ 
           messages: summaryPromptMessages,
           kullanici_adi: isLoggedIn ? userEmail : 'Misafir',
@@ -517,6 +540,7 @@ function App() {
   const handleLogout = () => {
     setIsLoggedIn(false);
     setUserEmail('');
+    setAccessToken('');
     setUserApiKey('');
     setIsApiKeySaved(false);
     setShowApiKeyModal(false);
@@ -532,7 +556,9 @@ function App() {
 
   const fetchAdminStats = async () => {
     try {
-      const res = await fetch(`${API_BASE_URL}/api/admin/stats?email=${encodeURIComponent(userEmail)}`);
+      const res = await fetch(`${API_BASE_URL}/api/admin/stats`, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
       const data = await res.json();
       if (res.ok) {
         setAdminStats(data);
@@ -547,9 +573,9 @@ function App() {
 
   const addModelToSystem = async (modelObj) => {
     try {
-      const res = await fetch(`${API_BASE_URL}/api/models?email=${encodeURIComponent(userEmail)}`, {
+      const res = await fetch(`${API_BASE_URL}/api/models`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
         body: JSON.stringify({ 
           model_key: modelObj.id, 
           model_name: modelObj.name,
@@ -570,8 +596,9 @@ function App() {
 
   const handleSetFreeModel = async (modelId) => {
     try {
-      const res = await fetch(`${API_BASE_URL}/api/models/set-free/${modelId}?email=${encodeURIComponent(userEmail)}`, {
-        method: 'POST'
+      const res = await fetch(`${API_BASE_URL}/api/models/set-free/${modelId}`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${accessToken}` },
       });
       const data = await res.json();
       if (res.ok) {
@@ -593,8 +620,9 @@ function App() {
     if (!window.confirm("Bu modeli silmek istediğinize emin misiniz?")) return;
 
     try {
-      const res = await fetch(`${API_BASE_URL}/api/models/${modelId}?email=${encodeURIComponent(userEmail)}`, {
-        method: 'DELETE'
+      const res = await fetch(`${API_BASE_URL}/api/models/${modelId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${accessToken}` },
       });
       const data = await res.json();
       if (res.ok) {
@@ -642,9 +670,9 @@ function App() {
         return;
       }
 
-      const res = await fetch(`${API_BASE_URL}/api/admin/set-system-key?email=${encodeURIComponent(userEmail)}`, {
+      const res = await fetch(`${API_BASE_URL}/api/admin/set-system-key`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
         body: JSON.stringify({ system_api_key: trimmedSysKey })
       });
       const data = await res.json();
@@ -1142,8 +1170,9 @@ function App() {
                   setApiKeyErrorMsg(''); 
                   setShowApiKeyModal(true); 
                   try {
-                    await fetch(`${API_BASE_URL}/api/clear-key?email=${encodeURIComponent(userEmail)}`, {
-                      method: 'POST'
+                    await fetch(`${API_BASE_URL}/api/clear-key`, {
+                      method: 'POST',
+                      headers: { Authorization: `Bearer ${accessToken}` },
                     });
                   } catch (err) {
                   }
