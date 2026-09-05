@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, List
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -21,9 +21,15 @@ app.add_middleware(
 
 ADMIN_EMAIL = "bayrakeren228@gmail.com"
 SYSTEM_GUEST_EMAIL = "system_guest_shared_key@bursa.local"
+MAX_CONTEXT_TOKENS = 8000
+
+class MessageItem(BaseModel):
+    role: str
+    content: str
 
 class PromptRequest(BaseModel):
-    prompt: str
+    prompt: Optional[str] = None
+    messages: Optional[List[MessageItem]] = None
     kullanici_adi: str = "Misafir"
     user_api_key: Optional[str] = None
     model_secimi: Optional[str] = None
@@ -94,13 +100,6 @@ def init_db():
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
     """)
     
-    cursor.execute("""
-        INSERT IGNORE INTO models (model_key, model_name, is_default_free) VALUES 
-        ('google/gemini-2.5-flash', 'Gemini Flash', TRUE),
-        ('deepseek/deepseek-chat', 'DeepSeek V3', FALSE),
-        ('openai/gpt-4o-mini', 'GPT-4o-mini', FALSE)
-    """)
-    
     conn.commit()
     cursor.close()
     conn.close()
@@ -135,7 +134,7 @@ def set_system_key(request: SystemKeyRequest, email: str):
         conn.commit()
         cursor.close()
         conn.close()
-        return {"message": "Sistem misafir API anahtarı güvenle şifrelenip kaydedildi."}
+        return {"message": "Sistem misafir API anahtarı güvenle kaydedildi."}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Anahtar kaydedilemedi: {str(e)}")
 
@@ -146,12 +145,12 @@ def add_model(request: ModelRequest, email: str):
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
-        if request.is_default_free:
-            cursor.execute("UPDATE models SET is_default_free = FALSE")
+        
         cursor.execute(
-            "INSERT INTO models (model_key, model_name, is_default_free) VALUES (%s, %s, %s)", 
-            (request.model_key, request.model_name, request.is_default_free)
+            "INSERT INTO models (model_key, model_name, is_default_free) VALUES (%s, %s, FALSE)", 
+            (request.model_key, request.model_name)
         )
+
         conn.commit()
         cursor.close()
         conn.close()
@@ -165,13 +164,23 @@ def set_default_free_model(model_id: int, email: str):
         raise HTTPException(status_code=403, detail="Bu işlem için yetkiniz yok!")
     try:
         conn = get_db_connection()
-        cursor = conn.cursor()
+        cursor = conn.cursor(dictionary=True)
+        
+        cursor.execute("SELECT is_default_free FROM models WHERE id = %s", (model_id,))
+        current = cursor.fetchone()
+        
         cursor.execute("UPDATE models SET is_default_free = FALSE")
-        cursor.execute("UPDATE models SET is_default_free = TRUE WHERE id = %s", (model_id,))
+        
+        if current and not current["is_default_free"]:
+            cursor.execute("UPDATE models SET is_default_free = TRUE WHERE id = %s", (model_id,))
+            msg = "Model misafir modeli olarak seçildi."
+        else:
+            msg = "Misafir modeli seçimi kaldırıldı."
+            
         conn.commit()
         cursor.close()
         conn.close()
-        return {"message": "Misafirler için varsayılan ücretsiz model güncellendi."}
+        return {"message": msg}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Güncellenemedi: {str(e)}")
 
@@ -183,14 +192,15 @@ def delete_model(model_id: int, email: str):
         conn = get_db_connection()
         cursor = conn.cursor(dictionary=True)
         
-        cursor.execute("SELECT model_key FROM models WHERE id = %s", (model_id,))
-        model_row = cursor.fetchone()
-        if model_row and model_row["model_key"] == "openrouter/free":
+        cursor.execute("SELECT COUNT(*) as total FROM models WHERE is_active = TRUE")
+        count_res = cursor.fetchone()
+        if count_res["total"] <= 1:
             cursor.close()
             conn.close()
-            raise HTTPException(status_code=400, detail="OpenRouter Free modeli sistem testi ve misafir erişimi için zorunludur, silinemez!")
+            raise HTTPException(status_code=400, detail="Sistemde en az 1 model kalması zorunludur. Son model silinemez!")
 
         cursor.execute("DELETE FROM models WHERE id = %s", (model_id,))
+
         conn.commit()
         cursor.close()
         conn.close()
@@ -224,14 +234,13 @@ def clear_user_key(email: str):
         conn.commit()
         cursor.close()
         conn.close()
-        return {"message": "API anahtarı veritabanından tamamen silindi."}
+        return {"message": "API anahtarı veritabanından silindi."}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Anahtar silinemedi: {str(e)}")
 
 @app.post("/api/test-key")
 def test_user_api_key(request: TestKeyRequest):
     clean_key = request.api_key.strip()
-    
     if not clean_key.startswith("sk-or-v1-") or len(clean_key) != 73:
         raise HTTPException(status_code=400, detail="Hatalı Format: Anahtar 'sk-or-v1-' ile başlamalı ve 73 karakter olmalıdır.")
 
@@ -239,7 +248,6 @@ def test_user_api_key(request: TestKeyRequest):
         url="https://openrouter.ai/api/v1/auth/key",
         headers={"Authorization": f"Bearer {clean_key}"}
     )
-    
     if response.status_code != 200:
         raise HTTPException(status_code=400, detail="Geçersiz API Anahtarı! OpenRouter bu anahtarı reddetti.")
     
@@ -262,11 +270,8 @@ def ask_ai(request: PromptRequest):
         if not is_guest:
             if request.user_api_key and request.user_api_key.strip() != "":
                 clean_key = request.user_api_key.strip()
-                expected_length = 73
-                if not clean_key.startswith("sk-or-v1-"):
-                    raise HTTPException(status_code=400, detail="Girdiğiniz API anahtarı 'sk-or-v1-' ile başlamalıdır.")
-                if len(clean_key) != expected_length:
-                    raise HTTPException(status_code=400, detail=f"API anahtarı uzunluğu hatalı ({len(clean_key)}/{expected_length}).")
+                if not clean_key.startswith("sk-or-v1-") or len(clean_key) != 73:
+                    raise HTTPException(status_code=400, detail="API anahtarı formatı veya uzunluğu hatalı.")
 
                 enc_key = encrypt_api_key(clean_key)
                 cursor.execute("""
@@ -285,8 +290,8 @@ def ask_ai(request: PromptRequest):
                 cursor.close()
                 conn.close()
                 raise HTTPException(
-                    status_code=400, 
-                    detail="API anahtarınız bulunamadı veya silinmiş. Lütfen geçerli bir OpenRouter API anahtarı girin."
+                    status_code=401, 
+                    detail="OpenRouter API anahtarınız silinmiş veya geçersiz hale gelmiş. Lütfen yeni bir anahtar girin."
                 )
         else:
             cursor.execute("SELECT encrypted_api_key FROM users WHERE email = %s", (SYSTEM_GUEST_EMAIL,))
@@ -298,18 +303,68 @@ def ask_ai(request: PromptRequest):
         if is_guest:
             cursor.execute("SELECT model_key FROM models WHERE is_default_free = TRUE LIMIT 1")
             free_model_row = cursor.fetchone()
-            selected_model = free_model_row["model_key"] if free_model_row else "google/gemini-2.5-flash"
+            if free_model_row:
+                selected_model = free_model_row["model_key"]
+            else:
+                cursor.close()
+                conn.close()
+                raise HTTPException(
+                    status_code=400, 
+                    detail="Sistemde misafirler için seçilmiş bir model bulunmuyor. Lütfen admin panelinden bir modeli 'Misafir Modeli Yap' olarak belirleyin."
+                )
         else:
-            selected_model = request.model_secimi or "google/gemini-2.5-flash"
+            selected_model = request.model_secimi
+            if not selected_model:
+                cursor.execute("SELECT model_key FROM models WHERE is_active = TRUE LIMIT 1")
+                fallback_row = cursor.fetchone()
+                if fallback_row:
+                    selected_model = fallback_row["model_key"]
+                else:
+                    cursor.close()
+                    conn.close()
+                    raise HTTPException(status_code=400, detail="Sistemde aktif model bulunmuyor.")
 
         cursor.close()
         conn.close()
 
         if not active_api_key or active_api_key.strip() == "":
             raise HTTPException(
-                status_code=400, 
-                detail="API anahtarınız bulunamadı veya silinmiş. Lütfen geçerli bir OpenRouter API anahtarı girin."
+                status_code=401, 
+                detail="OpenRouter API anahtarınız silinmiş veya geçersiz hale gelmiş. Lütfen yeni bir anahtar girin."
             )
+
+        check_res = requests.get(
+            url="https://openrouter.ai/api/v1/auth/key",
+            headers={"Authorization": f"Bearer {active_api_key}"}
+        )
+        if check_res.status_code != 200:
+            if not is_guest and request.kullanici_adi:
+                try:
+                    c = get_db_connection()
+                    cur = c.cursor()
+                    cur.execute("UPDATE users SET encrypted_api_key = NULL WHERE email = %s", (request.kullanici_adi,))
+                    c.commit()
+                    cur.close()
+                    c.close()
+                except Exception:
+                    pass
+            raise HTTPException(
+                status_code=401,
+                detail="OpenRouter API anahtarınız silinmiş veya geçersiz hale gelmiş. Lütfen yeni bir anahtar girin."
+            )
+
+        messages_payload = [
+            {
+                "role": "system", 
+                "content": "Sen yalnızca Bursa şehri için uzman bir yapay zeka rehberisin. Görevin sadece Bursa'nın tarihi, kültürü, yemekleri, yerleri hakkında bilgi vermektir. Kullanıcı hangi dilde soru sorarsa sorsun daima akıcı ve eksiksiz bir şekilde TÜRKÇE yanıt vermelisin."
+            }
+        ]
+
+        if request.messages and len(request.messages) > 0:
+            for msg in request.messages:
+                messages_payload.append({"role": msg.role, "content": msg.content})
+        elif request.prompt:
+            messages_payload.append({"role": "user", "content": request.prompt})
 
         response = requests.post(
             url="https://openrouter.ai/api/v1/chat/completions",
@@ -319,13 +374,7 @@ def ask_ai(request: PromptRequest):
             },
             json={
                 "model": selected_model,
-                "messages": [
-                    {
-                        "role": "system", 
-                        "content": "Sen yalnızca Bursa şehri için uzman bir yapay zeka rehberisin. Görevin sadece Bursa'nın tarihi, kültürü, yemekleri, yerleri hakkında bilgi vermektir. Kullanıcı hangi dilde soru sorarsa sorsun daima akıcı ve eksiksiz bir şekilde TÜRKÇE yanıt vermelisin."
-                    },
-                    {"role": "user", "content": request.prompt}
-                ]
+                "messages": messages_payload
             }
         )
 
@@ -336,7 +385,13 @@ def ask_ai(request: PromptRequest):
             error_msg = error_detail.get("message", "Bilinmeyen AI servis hatası")
             lower_msg = error_msg.lower()
 
-            if response.status_code in [401, 403] or "user not found" in lower_msg or "key" in lower_msg or "unauthorized" in lower_msg or "invalid" in lower_msg or "auth" in lower_msg or "not found" in lower_msg:
+            if response.status_code == 402 or "requires more credits" in lower_msg or "can only afford" in lower_msg or "credit" in lower_msg or "balance" in lower_msg or "insufficient" in lower_msg:
+                raise HTTPException(
+                    status_code=402, 
+                    detail="OpenRouter hesabınızda bu işlem için yeterli bakiye veya kredi kalmadı. Lütfen hesabınızı kontrol edin."
+                )
+
+            if response.status_code in [401, 403] or "user not found" in lower_msg or "invalid api key" in lower_msg or "unauthorized" in lower_msg or "key" in lower_msg or "auth" in lower_msg or "not found" in lower_msg:
                 if not is_guest and request.kullanici_adi:
                     try:
                         c = get_db_connection()
@@ -348,20 +403,22 @@ def ask_ai(request: PromptRequest):
                     except Exception:
                         pass
                 raise HTTPException(
-                    status_code=400, 
-                    detail="API anahtarınız bulunamadı, silinmiş veya geçersiz hale gelmiş. Lütfen geçerli bir OpenRouter API anahtarı girin."
-                )
-            elif response.status_code == 402 or "requires more credits" in lower_msg or "can only afford" in lower_msg or "credits" in lower_msg or "balance" in lower_msg or "insufficient" in lower_msg:
-                raise HTTPException(
-                    status_code=400, 
-                    detail="OpenRouter hesabınızda bu model/işlem için yeterli bakiye veya kredi kalmadı. Lütfen hesabınızı kontrol edin."
+                    status_code=401, 
+                    detail="OpenRouter API anahtarınız silinmiş veya geçersiz hale gelmiş. Lütfen yeni bir anahtar girin."
                 )
             
             raise HTTPException(status_code=400, detail=f"Yapay Zeka Servis Hatası: {error_msg}")
 
         ai_response_text = res_data["choices"][0]["message"]["content"]
         usage_info = res_data.get("usage", {})
-        total_tokens_used = usage_info.get("total_tokens", 0) or max(1, len(request.prompt) + len(ai_response_text)) // 4
+        total_tokens_used = usage_info.get("total_tokens", 0) or max(1, len(messages_payload[-1]["content"]) + len(ai_response_text)) // 4
+
+        usage_ratio = total_tokens_used / MAX_CONTEXT_TOKENS
+        context_percentage = int(usage_ratio * 100)
+        if context_percentage > 100:
+            context_percentage = 100
+
+        context_warning = context_percentage >= 80
 
         elapsed_time = round(time.time() - start_time, 2)
         if elapsed_time <= 0:
@@ -370,13 +427,14 @@ def ask_ai(request: PromptRequest):
         chat_id = request.chat_id if request.chat_id else str(uuid.uuid4())[:8]
         request_id = "req_" + str(uuid.uuid4())[:10]
 
-        if request.prompt.strip() != "Test":
+        last_prompt_text = messages_payload[-1]["content"]
+        if last_prompt_text.strip() != "Test":
             try:
                 conn = get_db_connection()
                 cursor = conn.cursor()
                 cursor.execute(
                     "INSERT INTO chat_history_v3 (chat_id, request_id, prompt, response, kullanici_adi, model_adi, sure, total_tokens) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)", 
-                    (chat_id, request_id, request.prompt, ai_response_text, request.kullanici_adi, selected_model, elapsed_time, total_tokens_used)
+                    (chat_id, request_id, last_prompt_text, ai_response_text, request.kullanici_adi, selected_model, elapsed_time, total_tokens_used)
                 )
                 conn.commit()
                 cursor.close()
@@ -384,7 +442,12 @@ def ask_ai(request: PromptRequest):
             except Exception as db_error:
                 print(f"VERİTABANI HATASI: {db_error}")
 
-        return {"response": ai_response_text}
+        return {
+            "response": ai_response_text,
+            "total_tokens": total_tokens_used,
+            "context_percentage": context_percentage,
+            "context_warning": context_warning
+        }
 
     except Exception as e:
         if isinstance(e, HTTPException):
