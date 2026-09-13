@@ -5,6 +5,7 @@ Bursa'nın tarihini, kültürünü, gezilecek yerlerini ve yerel lezzetlerini ya
 ## Özellikler
 
 - **Yapay zeka rehberi:** Bursa hakkında serbest metinli sorulara doğal dilde yanıt veren, konuşma geçmişini hatırlayan bir sohbet arayüzü.
+- **Çoklu dil desteği:** Arayüz ve yapay zeka yanıtları TR/EN arasında anlık geçiş yapabilir; hata mesajları ve tüm yer/lezzet içerikleri de iki dilde mevcuttur.
 - **Çoklu LLM desteği:** OpenRouter üzerinden Google, Anthropic, OpenAI gibi farklı sağlayıcıların modelleri arasında anlık geçiş.
 - **Misafir modu:** Giriş yapmadan, sistemin sunduğu ücretsiz bir modelle sınırlı sayıda soru sorabilme.
 - **Google ile giriş:** Kullanıcılar kendi OpenRouter API anahtarlarını bağlayıp istedikleri modeli seçebilir.
@@ -21,9 +22,20 @@ Bursa'nın tarihini, kültürünü, gezilecek yerlerini ve yerel lezzetlerini ya
 |---|---|
 | Frontend | React (Vite), React Icons |
 | Backend | Python, FastAPI |
-| Veritabanı | MySQL |
+| Veritabanı | MariaDB |
 | Yapay zeka | OpenRouter API (çoklu model routing) |
 | Kimlik doğrulama | Google OAuth (sunucu tarafında doğrulanan access token) |
+
+## Sürüm Bilgileri
+
+Proje aşağıdaki sürümlerle geliştirilip test edilmiştir — canlıya alırken bu sürümlerin kullanılması önerilir:
+
+| Bileşen | Sürüm |
+|---|---|
+| Python | 3.9 |
+| MariaDB | 10.5 |
+| Nginx | 1.20 |
+| Node.js | 24.x |
 
 ##  Güvenlik notları
 
@@ -56,7 +68,7 @@ npm run dev
 
 | Değişken | Açıklama |
 |---|---|
-| `DB_HOST`, `DB_USER`, `DB_PASSWORD`, `DB_NAME` | MySQL bağlantı bilgileri |
+| `DB_HOST`, `DB_USER`, `DB_PASSWORD`, `DB_NAME` | MariaDB bağlantı bilgileri |
 | `ADMIN_EMAIL` | Yönetici paneline erişebilecek Google hesabının e-postası |
 | `ENCRYPTION_KEY` | API anahtarlarını şifrelemek için kullanılan Fernet anahtarı |
 | `ALLOWED_ORIGINS` | Frontend'in yayında çalışacağı adres(ler), virgülle ayrılmış |
