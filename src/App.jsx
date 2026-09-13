@@ -3,7 +3,7 @@ import { useGoogleLogin } from '@react-oauth/google';
 import ReactMarkdown from 'react-markdown';
 import './App.css'
 import arkaplan from './assets/arkaplan.png'
-import { locationData } from './data/locationData';
+import { locationData, locationDataEN } from './data/locationData';
 import { 
   FaPills, FaLandmark, FaBus, FaFutbol, FaMapMarkerAlt, FaGoogle, 
   FaRobot, FaUserCircle, FaSun, FaCloudSun, FaTree, FaMountain, 
@@ -30,8 +30,8 @@ function App() {
   const [currentPercentage, setCurrentPercentage] = useState(0);
   const [limitReached, setLimitReached] = useState(false);
 
-  const [weatherBursa, setWeatherBursa] = useState({ temp: '--', condition: 'Yükleniyor...' });
-  const [weatherUludag, setWeatherUludag] = useState({ temp: '--', condition: 'Yükleniyor...' });
+  const [weatherBursa, setWeatherBursa] = useState({ temp: '--', code: null });
+  const [weatherUludag, setWeatherUludag] = useState({ temp: '--', code: null });
 
   const [modelsList, setModelsList] = useState([]);
   const [selectedModel, setSelectedModel] = useState('google/gemini-2.5-flash');
@@ -80,7 +80,7 @@ function App() {
       if (dataBursa && dataBursa.current) {
         setWeatherBursa({
           temp: Math.round(dataBursa.current.temperature_2m),
-          condition: getWeatherDescription(dataBursa.current.weather_code)
+          code: dataBursa.current.weather_code
         });
       }
 
@@ -89,22 +89,23 @@ function App() {
       if (dataUludag && dataUludag.current) {
         setWeatherUludag({
           temp: Math.round(dataUludag.current.temperature_2m),
-          condition: getWeatherDescription(dataUludag.current.weather_code)
+          code: dataUludag.current.weather_code
         });
       }
     } catch (err) {
-      setWeatherBursa({ temp: '30', condition: 'Açık' });
-      setWeatherUludag({ temp: '16', condition: 'Serin' });
+      setWeatherBursa({ temp: '30', code: 0 });
+      setWeatherUludag({ temp: '16', code: 1 });
     }
   };
 
   const getWeatherDescription = (code) => {
-    if (code === 0) return 'Açık';
-    if ([1, 2, 3].includes(code)) return 'Parçalı Bulutlu';
-    if ([45, 48].includes(code)) return 'Sisli';
-    if ([51, 53, 55, 56, 57, 61, 63, 65].includes(code)) return 'Yağmurlu';
-    if ([71, 73, 75, 77].includes(code)) return 'Karlı';
-    return 'Açık';
+    if (code === null || code === undefined) return lang === 'TR' ? 'Yükleniyor...' : 'Loading...';
+    if (code === 0) return lang === 'TR' ? 'Açık' : 'Clear';
+    if ([1, 2, 3].includes(code)) return lang === 'TR' ? 'Parçalı Bulutlu' : 'Partly Cloudy';
+    if ([45, 48].includes(code)) return lang === 'TR' ? 'Sisli' : 'Foggy';
+    if ([51, 53, 55, 56, 57, 61, 63, 65].includes(code)) return lang === 'TR' ? 'Yağmurlu' : 'Rainy';
+    if ([71, 73, 75, 77].includes(code)) return lang === 'TR' ? 'Karlı' : 'Snowy';
+    return lang === 'TR' ? 'Açık' : 'Clear';
   };
 
   useEffect(() => {
@@ -227,17 +228,17 @@ function App() {
     const expectedLength = 73;
 
     if (!trimmedKey) {
-      setApiKeyErrorMsg("API anahtarı boş bırakılamaz!");
+      setApiKeyErrorMsg(lang === 'TR' ? "API anahtarı boş bırakılamaz!" : "API key cannot be left empty!");
       return;
     }
 
     if (!trimmedKey.startsWith('sk-or-v1-')) {
-      setApiKeyErrorMsg("Hatalı Format: OpenRouter anahtarları 'sk-or-v1-' ile başlamalıdır.");
+      setApiKeyErrorMsg(lang === 'TR' ? "Hatalı Format: OpenRouter anahtarları 'sk-or-v1-' ile başlamalıdır." : "Invalid Format: OpenRouter keys must start with 'sk-or-v1-'.");
       return;
     }
 
     if (trimmedKey.length !== expectedLength) {
-      setApiKeyErrorMsg(`Hatalı Uzunluk: Girdiğiniz anahtar ${trimmedKey.length} karakter. 73 karakter olmalıdır.`);
+      setApiKeyErrorMsg(lang === 'TR' ? `Hatalı Uzunluk: Girdiğiniz anahtar ${trimmedKey.length} karakter. 73 karakter olmalıdır.` : `Invalid Length: The key you entered is ${trimmedKey.length} characters. It must be 73 characters.`);
       return;
     }
 
@@ -247,13 +248,13 @@ function App() {
       const testRes = await fetch(`${API_BASE_URL}/api/test-key`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ api_key: trimmedKey }),
+        body: JSON.stringify({ api_key: trimmedKey, lang: lang }),
       });
 
       const testData = await testRes.json();
 
       if (!testRes.ok) {
-        setApiKeyErrorMsg(testData.detail || "Geçersiz API Anahtarı! OpenRouter bu anahtarı reddetti.");
+        setApiKeyErrorMsg(testData.detail || (lang === 'TR' ? "Geçersiz API Anahtarı! OpenRouter bu anahtarı reddetti." : "Invalid API Key! OpenRouter rejected this key."));
         setValidatingKey(false);
         return;
       }
@@ -265,7 +266,8 @@ function App() {
           prompt: "Test",
           kullanici_adi: userEmail,
           user_api_key: trimmedKey,
-          chat_id: currentChatId
+          chat_id: currentChatId,
+          lang: lang
         }),
       });
 
@@ -276,10 +278,10 @@ function App() {
       setTempApiKeyInput('');
       setApiKeyErrorMsg('');
       setErrorMessage('');
-      alert("API Anahtarınız başarıyla doğrulandı ve kaydedildi!");
+      alert(lang === 'TR' ? "API Anahtarınız başarıyla doğrulandı ve kaydedildi!" : "Your API Key has been successfully verified and saved!");
 
     } catch (err) {
-      setApiKeyErrorMsg("Sunucuya bağlanılamadı. API anahtarı doğrulanamadı.");
+      setApiKeyErrorMsg(lang === 'TR' ? "Sunucuya bağlanılamadı. API anahtarı doğrulanamadı." : "Could not connect to the server. API key could not be verified.");
     } finally {
       setValidatingKey(false);
     }
@@ -288,7 +290,7 @@ function App() {
   const handleCopyText = (text) => {
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(text).then(() => {
-        alert("Metin panoya kopyalandı!");
+        alert(lang === 'TR' ? "Metin panoya kopyalandı!" : "Text copied to clipboard!");
       }).catch(() => {
         fallbackCopyText(text);
       });
@@ -306,11 +308,59 @@ function App() {
     textArea.select();
     try {
       document.execCommand('copy');
-      alert("Metin panoya kopyalandı!");
+      alert(lang === 'TR' ? "Metin panoya kopyalandı!" : "Text copied to clipboard!");
     } catch (err) {
-      alert("Kopyalanamadı.");
+      alert(lang === 'TR' ? "Kopyalanamadı." : "Could not copy.");
     }
     document.body.removeChild(textArea);
+  };
+
+  const speakResponse = (text, idx) => {
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    const targetPrefix = lang === 'TR' ? 'tr' : 'en';
+    const fallbackLang = lang === 'TR' ? 'tr-TR' : 'en-US';
+
+    const applyVoiceAndSpeak = () => {
+      const voices = window.speechSynthesis.getVoices();
+      const matchedVoice = voices.find(v => v.lang && v.lang.toLowerCase().startsWith(targetPrefix));
+      if (matchedVoice) {
+        utterance.voice = matchedVoice;
+        utterance.lang = matchedVoice.lang;
+      } else if (voices.length > 0) {
+        // Hedef dilde ses bulunamadi; hicbir sey soylenmemesindense
+        // sistemdeki ilk sesle (yanlis aksanla da olsa) okumayi deneriz.
+        utterance.voice = voices[0];
+        utterance.lang = fallbackLang;
+      } else {
+        utterance.lang = fallbackLang;
+      }
+      utterance.onend = () => setSpeakingIdx(null);
+      utterance.onerror = () => setSpeakingIdx(null);
+      window.speechSynthesis.speak(utterance);
+      setSpeakingIdx(idx);
+    };
+
+    const existingVoices = window.speechSynthesis.getVoices();
+    if (existingVoices.length === 0) {
+      window.speechSynthesis.onvoiceschanged = () => {
+        applyVoiceAndSpeak();
+        window.speechSynthesis.onvoiceschanged = null;
+      };
+      // Bazi tarayicilar onvoiceschanged'i hic tetiklemeyebilir; kisa bir
+      // sure sonra sesler hala bossa yine de mevcut varsayilanla deneriz.
+      setTimeout(() => {
+        if (window.speechSynthesis.getVoices().length === 0) {
+          utterance.lang = fallbackLang;
+          utterance.onend = () => setSpeakingIdx(null);
+          utterance.onerror = () => setSpeakingIdx(null);
+          window.speechSynthesis.speak(utterance);
+          setSpeakingIdx(idx);
+        }
+      }, 300);
+    } else {
+      applyVoiceAndSpeak();
+    }
   };
 
   const handleStopGeneration = () => {
@@ -347,7 +397,7 @@ function App() {
         const testRes = await fetch(`${API_BASE_URL}/api/test-key`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ api_key: userApiKey }),
+          body: JSON.stringify({ api_key: userApiKey, lang: lang }),
           signal: abortControllerRef.current.signal,
         });
         
@@ -397,7 +447,8 @@ function App() {
           kullanici_adi: isLoggedIn ? userEmail : 'Misafir',
           user_api_key: isLoggedIn ? userApiKey : '', 
           model_secimi: isLoggedIn ? selectedModel : '', 
-          chat_id: currentChatId
+          chat_id: currentChatId,
+          lang: lang
         }),
         signal: abortControllerRef.current.signal,
       });
@@ -424,13 +475,13 @@ function App() {
         }
       } else {
         let rawDetail = data.detail || '';
-        let userFriendlyMsg = 'Şu anda yapay zeka servislerinde geçici bir yoğunluk yaşanıyor. Lütfen biraz sonra tekrar deneyin.';
+        let userFriendlyMsg = lang === 'TR' ? 'Şu anda yapay zeka servislerinde geçici bir yoğunluk yaşanıyor. Lütfen biraz sonra tekrar deneyin.' : 'There is currently temporary congestion in the AI services. Please try again shortly.';
         
         if (res.status === 402 || rawDetail.toLowerCase().includes('credits') || rawDetail.toLowerCase().includes('balance') || rawDetail.toLowerCase().includes('insufficient')) {
-          userFriendlyMsg = 'OpenRouter hesabınızda bu işlem için yeterli bakiye veya kredi kalmadı. Lütfen hesabınızı kontrol edin.';
+          userFriendlyMsg = lang === 'TR' ? 'OpenRouter hesabınızda bu işlem için yeterli bakiye veya kredi kalmadı. Lütfen hesabınızı kontrol edin.' : 'Your OpenRouter account does not have enough balance or credit for this operation. Please check your account.';
           setErrorMessage(userFriendlyMsg);
         } else if (res.status === 401 || rawDetail.includes('401') || rawDetail.toLowerCase().includes('key') || rawDetail.toLowerCase().includes('unauthorized') || rawDetail.toLowerCase().includes('geçersiz') || rawDetail.toLowerCase().includes('silinmiş') || rawDetail.toLowerCase().includes('auth') || rawDetail.toLowerCase().includes('not found')) {
-          userFriendlyMsg = 'OpenRouter API anahtarınız silinmiş veya geçersiz hale gelmiş. Lütfen yeni bir anahtar girin.';
+          userFriendlyMsg = lang === 'TR' ? 'OpenRouter API anahtarınız silinmiş veya geçersiz hale gelmiş. Lütfen yeni bir anahtar girin.' : 'Your OpenRouter API key has been deleted or has become invalid. Please enter a new key.';
           setUserApiKey(''); 
           setIsApiKeySaved(false);
           setErrorMessage(userFriendlyMsg);
@@ -439,7 +490,7 @@ function App() {
             setShowApiKeyModal(true);
           }
         } else if (rawDetail.includes('Sistemde misafir API anahtarı tanımlanmamış')) {
-          userFriendlyMsg = 'Sistemde misafir API anahtarı tanımlanmamış. Lütfen admin panelinden sistem API anahtarını girin.';
+          userFriendlyMsg = lang === 'TR' ? 'Sistemde misafir API anahtarı tanımlanmamış. Lütfen admin panelinden sistem API anahtarını girin.' : 'No guest API key has been set up on the system. Please enter the system API key from the admin panel.';
           setErrorMessage(userFriendlyMsg);
         } else if (rawDetail) {
           userFriendlyMsg = rawDetail;
@@ -450,7 +501,7 @@ function App() {
       }
     } catch (err) {
       if (err.name !== 'AbortError') {
-        setErrorMessage('Sunucuya bağlanılamadı. Lütfen internet bağlantınızı veya backend servisinin açık olduğunu kontrol edin.');
+        setErrorMessage(lang === 'TR' ? 'Sunucuya bağlanılamadı. Lütfen internet bağlantınızı veya backend servisinin açık olduğunu kontrol edin.' : 'Could not connect to the server. Please check your internet connection or whether the backend service is running.');
       }
     } finally {
       setLoading(false);
@@ -501,7 +552,8 @@ function App() {
           kullanici_adi: isLoggedIn ? userEmail : 'Misafir',
           user_api_key: isLoggedIn ? userApiKey : '', 
           model_secimi: isLoggedIn ? selectedModel : '', 
-          chat_id: currentChatId
+          chat_id: currentChatId,
+          lang: lang
         }),
       });
       
@@ -658,7 +710,7 @@ function App() {
       const testRes = await fetch(`${API_BASE_URL}/api/test-key`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ api_key: trimmedSysKey }),
+        body: JSON.stringify({ api_key: trimmedSysKey, lang: lang }),
       });
 
       const testData = await testRes.json();
@@ -785,6 +837,8 @@ function App() {
     m.id.toLowerCase().includes(modelSearchQuery.toLowerCase())
   );
 
+  const activeLocationData = lang === 'TR' ? locationData : locationDataEN;
+
   return (
     <div 
       className="hero-section" 
@@ -804,7 +858,7 @@ function App() {
           <li><a href="#top" onClick={(e) => { e.preventDefault(); setSelectedLocation("Uludağ"); }}><FaMountain /> Uludağ</a></li>
           <li><a href="#top" onClick={(e) => { e.preventDefault(); setSelectedLocation("Mudanya"); }}><FaMapMarkerAlt /> Mudanya</a></li>
           <li><a href="#top" onClick={(e) => { e.preventDefault(); setSelectedLocation("Teleferik"); }}><FaTram /> {lang === 'TR' ? 'Teleferik' : 'Cable Car'}</a></li>
-          <li><a href="#top" onClick={(e) => { e.preventDefault(); setSelectedLocation("Botanic Park"); }}><FaTree /> Botanik Park</a></li>
+          <li><a href="#top" onClick={(e) => { e.preventDefault(); setSelectedLocation("Botanic Park"); }}><FaTree /> {lang === 'TR' ? 'Botanik Park' : 'Botanical Park'}</a></li>
           <li><a href="#top" onClick={(e) => { e.preventDefault(); setSelectedLocation("Suuçtu Şelalesi"); }}><FaWater /> {lang === 'TR' ? 'Suuçtu Şelalesi' : 'Suuctu Waterfall'}</a></li>
         </ul>
 
@@ -812,17 +866,17 @@ function App() {
         <ul className="sidebar-menu">
           <li><a href="#top" onClick={(e) => { e.preventDefault(); setSelectedLocation("Cumalıkızık"); }}><FaLandmark /> Cumalıkızık</a></li>
           <li><a href="#top" onClick={(e) => { e.preventDefault(); setSelectedLocation("Koza Han"); }}><FaStore /> Koza Han</a></li>
-          <li><a href="#top" onClick={(e) => { e.preventDefault(); setSelectedLocation("Ulu Cami"); }}><FaMosque /> Ulu Cami</a></li>
-          <li><a href="#top" onClick={(e) => { e.preventDefault(); setSelectedLocation("Karagöz Müzesi"); }}><FaTheaterMasks /> Karagöz Müzesi</a></li>
+          <li><a href="#top" onClick={(e) => { e.preventDefault(); setSelectedLocation("Ulu Cami"); }}><FaMosque /> {lang === 'TR' ? 'Ulu Cami' : 'Grand Mosque'}</a></li>
+          <li><a href="#top" onClick={(e) => { e.preventDefault(); setSelectedLocation("Karagöz Müzesi"); }}><FaTheaterMasks /> {lang === 'TR' ? 'Karagöz Müzesi' : 'Karagöz Museum'}</a></li>
         </ul>
 
         <div className="sidebar-section-title">{lang === 'TR' ? 'BURSA TATLARI' : 'BURSA TASTES'}</div>
         <ul className="sidebar-menu">
-          <li><a href="#top" onClick={(e) => { e.preventDefault(); setSelectedLocation("İskender Kebap"); }}><FaUtensils /> İskender Kebap</a></li>
-          <li><a href="#top" onClick={(e) => { e.preventDefault(); setSelectedLocation("İnegöl Köfte"); }}><FaUtensils /> İnegöl Köfte</a></li>
-          <li><a href="#top" onClick={(e) => { e.preventDefault(); setSelectedLocation("Kestane Şekeri"); }}><FaUtensils /> Kestane Şekeri</a></li>
-          <li><a href="#top" onClick={(e) => { e.preventDefault(); setSelectedLocation("Kemalpaşa Tatlısı"); }}><FaUtensils /> Kemalpaşa Tatlısı</a></li>
-          <li><a href="#top" onClick={(e) => { e.preventDefault(); setSelectedLocation("Bursa Şeftalisi"); }}><FaLeaf /> Bursa Şeftalisi</a></li>
+          <li><a href="#top" onClick={(e) => { e.preventDefault(); setSelectedLocation("İskender Kebap"); }}><FaUtensils /> {lang === 'TR' ? 'İskender Kebap' : 'İskender Kebab'}</a></li>
+          <li><a href="#top" onClick={(e) => { e.preventDefault(); setSelectedLocation("İnegöl Köfte"); }}><FaUtensils /> {lang === 'TR' ? 'İnegöl Köfte' : 'İnegöl Meatballs'}</a></li>
+          <li><a href="#top" onClick={(e) => { e.preventDefault(); setSelectedLocation("Kestane Şekeri"); }}><FaUtensils /> {lang === 'TR' ? 'Kestane Şekeri' : 'Candied Chestnuts'}</a></li>
+          <li><a href="#top" onClick={(e) => { e.preventDefault(); setSelectedLocation("Kemalpaşa Tatlısı"); }}><FaUtensils /> {lang === 'TR' ? 'Kemalpaşa Tatlısı' : 'Kemalpaşa Dessert'}</a></li>
+          <li><a href="#top" onClick={(e) => { e.preventDefault(); setSelectedLocation("Bursa Şeftalisi"); }}><FaLeaf /> {lang === 'TR' ? 'Bursa Şeftalisi' : 'Bursa Peach'}</a></li>
           <li><a href="#top" onClick={(e) => { e.preventDefault(); setSelectedLocation("Cantık"); }}><FaPizzaSlice /> Cantık</a></li>
         </ul>
 
@@ -830,11 +884,11 @@ function App() {
           <div className="weather-title">{lang === 'TR' ? 'HAVA DURUMU' : 'WEATHER'}</div>
           <div className="weather-item">
             <FaSun style={{ color: '#fbbf24', fontSize: '14px' }} />
-            <span>Bursa: <strong>{weatherBursa.temp}°C</strong> - {weatherBursa.condition}</span>
+            <span>Bursa: <strong>{weatherBursa.temp}°C</strong> - {getWeatherDescription(weatherBursa.code)}</span>
           </div>
           <div className="weather-item">
             <FaCloudSun style={{ color: '#fcd34d', fontSize: '14px' }} />
-            <span>Uludağ: <strong>{weatherUludag.temp}°C</strong> - {weatherUludag.condition}</span>
+            <span>Uludağ: <strong>{weatherUludag.temp}°C</strong> - {getWeatherDescription(weatherUludag.code)}</span>
           </div>
         </div>
       </aside>
@@ -854,7 +908,7 @@ function App() {
               alignItems: 'center', gap: '6px', fontSize: '12px', boxShadow: '0 4px 12px rgba(74,222,128,0.3)'
             }}
           >
-            ✨ Yeni Oturuma Başla
+            ✨ {lang === 'TR' ? 'Yeni Oturuma Başla' : 'Start New Session'}
           </button>
         )}
 
@@ -867,13 +921,13 @@ function App() {
               alignItems: 'center', gap: '6px', fontSize: '12px', boxShadow: '0 4px 12px rgba(34,197,94,0.3)'
             }}
           >
-            <FaShieldAlt /> Admin Paneli
+            <FaShieldAlt /> {lang === 'TR' ? 'Admin Paneli' : 'Admin Panel'}
           </button>
         )}
 
         {!isLoggedIn ? (
           <button className="btn btn-google" onClick={() => loginWithGoogle()} style={{ padding: '8px 14px', fontSize: '12px', borderRadius: '12px' }}>
-            <FaGoogle /> Giriş Yap
+            <FaGoogle /> {lang === 'TR' ? 'Giriş Yap' : 'Sign In'}
           </button>
         ) : (
           <div className="user-profile" onClick={handleLogout}>
@@ -894,29 +948,29 @@ function App() {
             margin: '0 auto 12px auto', boxSizing: 'border-box', boxShadow: '0 10px 30px rgba(0,0,0,0.6)'
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#60a5fa', fontWeight: 'bold' }}>
-              <FaRobot /> Sohbet Hafızası Uyarısı (%{currentPercentage} Doluluk)
+              <FaRobot /> {lang === 'TR' ? `Sohbet Hafızası Uyarısı (%${currentPercentage} Doluluk)` : `Chat Memory Warning (${currentPercentage}% Full)`}
             </div>
             <p style={{ margin: 0, color: '#d4d4d8', lineHeight: '1.5' }}>
-              Konuşma geçmişimiz hafıza sınırına yaklaştı. Konuşmanın tamamının özetini alıp yeni oturuma geçmek ister misiniz?
+              {lang === 'TR' ? 'Konuşma geçmişimiz hafıza sınırına yaklaştı. Konuşmanın tamamının özetini alıp yeni oturuma geçmek ister misiniz?' : 'Our conversation is approaching the memory limit. Would you like a summary of the whole conversation and to start a new session?'}
             </p>
             <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
               <button 
                 onClick={handleRequestSummary}
                 style={{ background: '#2563eb', color: '#fff', border: 'none', padding: '8px 14px', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}
               >
-                <span>📝</span> Konuşmanın Özetini İste
+                <span>📝</span> {lang === 'TR' ? 'Konuşmanın Özetini İste' : 'Request Conversation Summary'}
               </button>
               <button 
                 onClick={handleStartNewSession}
                 style={{ background: 'rgba(34, 197, 94, 0.2)', border: '1px solid rgba(34, 197, 94, 0.4)', color: '#4ade80', padding: '8px 14px', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer', fontSize: '12px' }}
               >
-                ✨ Doğrudan Yeni Oturuma Başla
+                ✨ {lang === 'TR' ? 'Doğrudan Yeni Oturuma Başla' : 'Start New Session Directly'}
               </button>
               <button 
                 onClick={() => setShowContextWarning(false)}
                 style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.2)', color: '#a1a1aa', padding: '8px 12px', borderRadius: '10px', cursor: 'pointer', fontSize: '12px', marginLeft: 'auto' }}
               >
-                Kapat
+                {lang === 'TR' ? 'Kapat' : 'Close'}
               </button>
             </div>
           </div>
@@ -932,7 +986,7 @@ function App() {
                     <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
                       <button 
                         onClick={() => handleCopyText(chat.prompt)}
-                        title="İstemi Kopyala"
+                        title={lang === 'TR' ? 'İstemi Kopyala' : 'Copy Prompt'}
                         style={{ background: 'rgba(255,255,255,0.08)', border: 'none', borderRadius: '50%', width: '28px', height: '28px', color: '#a1a1aa', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                       >
                         <FaCopy size={11} />
@@ -944,7 +998,7 @@ function App() {
                           updated[idx].editText = chat.prompt;
                           setChatHistory(updated);
                         }}
-                        title="İstemi Düzenle"
+                        title={lang === 'TR' ? 'İstemi Düzenle' : 'Edit Prompt'}
                         style={{ background: 'rgba(255,255,255,0.08)', border: 'none', borderRadius: '50%', width: '28px', height: '28px', color: '#a1a1aa', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                       >
                         <FaPencilAlt size={11} />
@@ -1014,10 +1068,10 @@ function App() {
                       boxShadow: '0 15px 35px rgba(0,0,0,0.6)'
                     }}>
                       <div style={{ color: '#4ade80', fontWeight: 'bold', fontSize: '12px' }}>
-                        Bursa AI Rehberi
+                        {lang === 'TR' ? 'Bursa AI Rehberi' : 'Bursa AI Guide'}
                       </div>
                       <span style={{ color: '#9ca3af', fontSize: '13px', fontStyle: 'italic' }}>
-                        Yapay zeka düşünüyor...
+                        {lang === 'TR' ? 'Yapay zeka düşünüyor...' : 'AI is thinking...'}
                       </span>
                       <span style={{ color: '#facc15', fontSize: '12px', fontStyle: 'italic', background: 'rgba(250, 204, 21, 0.15)', padding: '3px 10px', borderRadius: '8px', fontWeight: 'bold', marginLeft: 'auto', minWidth: '45px', textAlign: 'center' }}>
                         {elapsedTime.toFixed(1)}s
@@ -1031,24 +1085,24 @@ function App() {
                     </div>
                     <div style={{ background: 'rgba(24, 24, 27, 0.95)', backdropFilter: 'blur(20px)', border: '1px solid rgba(255, 255, 255, 0.1)', color: '#f1f5f9', padding: '16px 20px', borderRadius: '4px 18px 18px 18px', fontSize: '14px', lineHeight: '1.7', boxShadow: '0 15px 35px rgba(0,0,0,0.5)', width: '100%' }}>
                       <div style={{ color: '#4ade80', fontWeight: 'bold', marginBottom: '6px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        Bursa AI Rehberi
+                        {lang === 'TR' ? 'Bursa AI Rehberi' : 'Bursa AI Guide'}
                       </div>
                       <ReactMarkdown>{chat.response}</ReactMarkdown>
 
                       <div style={{ display: 'flex', gap: '16px', marginTop: '12px', borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '10px', alignItems: 'center' }}>
                         <button 
                           onClick={() => handleCopyText(chat.response)}
-                          title="Yanıtı Kopyala"
+                          title={lang === 'TR' ? 'Yanıtı Kopyala' : 'Copy Response'}
                           style={{ background: 'transparent', border: 'none', color: '#a1a1aa', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px', fontSize: '12px', transition: 'color 0.2s' }}
                         >
-                          <FaCopy /> Kopyala
+                          <FaCopy /> {lang === 'TR' ? 'Kopyala' : 'Copy'}
                         </button>
                         <button 
                           onClick={() => handleAskAI(chat.prompt)}
-                          title="Yeniden Sor"
+                          title={lang === 'TR' ? 'Yeniden Sor' : 'Ask Again'}
                           style={{ background: 'transparent', border: 'none', color: '#a1a1aa', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px', fontSize: '12px' }}
                         >
-                          <FaRedo /> Yeniden Sor
+                          <FaRedo /> {lang === 'TR' ? 'Yeniden Sor' : 'Ask Again'}
                         </button>
                         <button 
                           onClick={() => {
@@ -1056,18 +1110,13 @@ function App() {
                               window.speechSynthesis.cancel();
                               setSpeakingIdx(null);
                             } else {
-                              window.speechSynthesis.cancel();
-                              const utterance = new SpeechSynthesisUtterance(chat.response);
-                              utterance.lang = 'tr-TR';
-                              utterance.onend = () => setSpeakingIdx(null);
-                              window.speechSynthesis.speak(utterance);
-                              setSpeakingIdx(idx);
+                              speakResponse(chat.response, idx);
                             }
                           }}
-                          title={speakingIdx === idx ? "Durdur" : "Sesli Oku"}
+                          title={speakingIdx === idx ? (lang === 'TR' ? 'Durdur' : 'Stop') : (lang === 'TR' ? 'Sesli Oku' : 'Read Aloud')}
                           style={{ background: 'transparent', border: 'none', color: speakingIdx === idx ? '#4ade80' : '#a1a1aa', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px', fontSize: '12px' }}
                         >
-                          {speakingIdx === idx ? <><FaStop /> Durdur</> : <><FaVolumeUp /> Sesli Oku</>}
+                          {speakingIdx === idx ? <><FaStop /> {lang === 'TR' ? 'Durdur' : 'Stop'}</> : <><FaVolumeUp /> {lang === 'TR' ? 'Sesli Oku' : 'Read Aloud'}</>}
                         </button>
                       </div>
                     </div>
@@ -1105,10 +1154,10 @@ function App() {
                     boxShadow: '0 15px 35px rgba(0,0,0,0.5)'
                   }}>
                     <div style={{ color: '#4ade80', fontWeight: 'bold', fontSize: '12px' }}>
-                      Bursa AI Rehberi
+                      {lang === 'TR' ? 'Bursa AI Rehberi' : 'Bursa AI Guide'}
                     </div>
                     <span style={{ color: '#9ca3af', fontSize: '13px', fontStyle: 'italic' }}>
-                      Yapay zeka düşünüyor...
+                      {lang === 'TR' ? 'Yapay zeka düşünüyor...' : 'AI is thinking...'}
                     </span>
                     <span style={{ color: '#facc15', fontSize: '12px', fontStyle: 'italic', background: 'rgba(250, 204, 21, 0.15)', padding: '3px 10px', borderRadius: '8px', fontWeight: 'bold', marginLeft: 'auto', minWidth: '45px', textAlign: 'center' }}>
                       {elapsedTime.toFixed(1)}s
@@ -1123,7 +1172,7 @@ function App() {
 
         {chatHistory.length === 0 && !loading && (
           <>
-            <h1 className="main-title">BURSA'YI <br /> KEŞFET</h1>
+            <h1 className="main-title">{lang === 'TR' ? <>BURSA'YI <br /> KEŞFET</> : <>DISCOVER <br /> BURSA</>}</h1>
             <p className="main-subtitle">
               {lang === 'TR' 
                 ? "Yapay zekâ destekli rehberinizle şehri keşfetme zamanı geldi." 
@@ -1158,7 +1207,7 @@ function App() {
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(34,197,94,0.1)', padding: '6px 12px', borderRadius: '8px' }}>
               <FaCheckCircle style={{ color: '#4ade80' }} />
-              <span style={{ color: '#4ade80', fontSize: '13px', fontWeight: '600' }}>API Key Güvenle Kaydedildi</span>
+              <span style={{ color: '#4ade80', fontSize: '13px', fontWeight: '600' }}>{lang === 'TR' ? 'API Key Güvenle Kaydedildi' : 'API Key Securely Saved'}</span>
               <button 
                 onClick={async () => { 
                   setUserApiKey(''); 
@@ -1177,7 +1226,7 @@ function App() {
                 }} 
                 style={{ background: 'rgba(59, 130, 246, 0.2)', border: '1px solid rgba(59, 130, 246, 0.4)', color: '#60a5fa', cursor: 'pointer', fontSize: '12px', padding: '4px 10px', borderRadius: '6px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px', marginLeft: '6px' }}
               >
-                <FaEdit /> Değiştir
+                <FaEdit /> {lang === 'TR' ? 'Değiştir' : 'Change'}
               </button>
             </div>
           </div>
@@ -1191,7 +1240,11 @@ function App() {
           }}>
             <FaInfoCircle style={{ color: '#4ade80', fontSize: '16px', flexShrink: 0 }} />
             <span style={{ color: '#ffffff', fontSize: '13px' }}>
-              Şu anda <strong style={{ color: '#4ade80' }}>ücretsiz modda</strong> soru soruyorsunuz. Kendi API anahtarınızla bağlanmak için sağ üstten <strong style={{ color: '#4ade80' }}>Google ile Giriş Yapabilirsiniz</strong>.
+              {lang === 'TR' ? (
+                <>Şu anda <strong style={{ color: '#4ade80' }}>ücretsiz modda</strong> soru soruyorsunuz. Kendi API anahtarınızla bağlanmak için sağ üstten <strong style={{ color: '#4ade80' }}>Google ile Giriş Yapabilirsiniz</strong>.</>
+              ) : (
+                <>You are currently asking questions in <strong style={{ color: '#4ade80' }}>free mode</strong>. To connect with your own API key, you can <strong style={{ color: '#4ade80' }}>Sign In with Google</strong> at the top right.</>
+              )}
             </span>
           </div>
         )}
@@ -1259,7 +1312,7 @@ function App() {
           </div>
         </div>
 
-        {selectedLocation && locationData[selectedLocation] ? (
+        {selectedLocation && activeLocationData[selectedLocation] ? (
           <div style={{
             position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
             background: 'linear-gradient(rgba(0,0,0,0.85), rgba(0,0,0,0.95)), url(' + arkaplan + ')',
@@ -1273,9 +1326,9 @@ function App() {
               padding: '0 10px'
             }}>
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
-                <span style={{ color: '#4ade80', fontSize: '14px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '1px' }}>BURSA KEŞİF REHBERİ</span>
-                <h1 style={{ margin: '5px 0 0 0', fontSize: '32px', color: '#ffffff', fontWeight: '800', minHeight: '40px' }}>{locationData[selectedLocation].title}</h1>
-                <p style={{ margin: '5px 0 0 0', fontSize: '15px', color: '#a1a1aa', fontStyle: 'italic' }}>{locationData[selectedLocation].subtitle}</p>
+                <span style={{ color: '#4ade80', fontSize: '14px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '1px' }}>{lang === 'TR' ? 'BURSA KEŞİF REHBERİ' : 'BURSA DISCOVERY GUIDE'}</span>
+                <h1 style={{ margin: '5px 0 0 0', fontSize: '32px', color: '#ffffff', fontWeight: '800', minHeight: '40px' }}>{activeLocationData[selectedLocation].title}</h1>
+                <p style={{ margin: '5px 0 0 0', fontSize: '15px', color: '#a1a1aa', fontStyle: 'italic' }}>{activeLocationData[selectedLocation].subtitle}</p>
               </div>
               <button 
                 onClick={() => setSelectedLocation(null)}
@@ -1286,7 +1339,7 @@ function App() {
                   transition: 'all 0.2s', whiteSpace: 'nowrap'
                 }}
               >
-                <FaTimes /> Ana Sayfaya Dön
+                <FaTimes /> {lang === 'TR' ? 'Ana Sayfaya Dön' : 'Back to Home'}
               </button>
             </div>
 
@@ -1300,18 +1353,18 @@ function App() {
               <div>
                 <h3 style={{ fontSize: '16px', color: '#4ade80', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                   📖 {["İskender Kebap", "İnegöl Köfte", "Kestane Şekeri", "Kemalpaşa Tatlısı", "Bursa Şeftalisi", "Cantık"].includes(selectedLocation) 
-                    ? "Lezzet Hakkında Detaylı Bilgi" 
-                    : "Mekan Hakkında Detaylı Tanıtım"}
+                    ? (lang === 'TR' ? "Lezzet Hakkında Detaylı Bilgi" : "Detailed Information About This Dish")
+                    : (lang === 'TR' ? "Mekan Hakkında Detaylı Tanıtım" : "Detailed Introduction to This Place")}
                 </h3>
                 <p style={{ fontSize: '15px', lineHeight: '1.8', color: '#ffffff', margin: 0 }}>
-                  {locationData[selectedLocation].description}
+                  {activeLocationData[selectedLocation].description}
                 </p>
               </div>
 
               <div>
-                <h3 style={{ fontSize: '16px', color: '#4ade80', marginBottom: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>⭐ Öne Çıkan Özellikler & Noktalar</h3>
+                <h3 style={{ fontSize: '16px', color: '#4ade80', marginBottom: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>⭐ {lang === 'TR' ? 'Öne Çıkan Özellikler & Noktalar' : 'Highlights & Key Points'}</h3>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
-                  {locationData[selectedLocation].highlights.map((h, idx) => (
+                  {activeLocationData[selectedLocation].highlights.map((h, idx) => (
                     <span key={idx} style={{ background: 'rgba(52, 211, 153, 0.15)', border: '1px solid rgba(52, 211, 153, 0.3)', padding: '8px 16px', borderRadius: '12px', fontSize: '13px', color: '#ffffff', fontWeight: '500' }}>
                       ✓ {h}
                     </span>
@@ -1322,11 +1375,11 @@ function App() {
               <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '20px' }}>
                 <h3 style={{ fontSize: '16px', color: '#4ade80', marginBottom: '15px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                   🤖 {["İskender Kebap", "İnegöl Köfte", "Kestane Şekeri", "Kemalpaşa Tatlısı", "Bursa Şeftalisi", "Cantık"].includes(selectedLocation) 
-                    ? "Yapay Zeka Rehberine Bu Lezzet İçin Sorulabilecek Sorular:" 
-                    : "Yapay Zeka Rehberine Bu Mekan İçin Sorulabilecek Sorular:"}
+                    ? (lang === 'TR' ? "Yapay Zeka Rehberine Bu Lezzet İçin Sorulabilecek Sorular:" : "Questions You Can Ask the AI Guide About This Dish:")
+                    : (lang === 'TR' ? "Yapay Zeka Rehberine Bu Mekan İçin Sorulabilecek Sorular:" : "Questions You Can Ask the AI Guide About This Place:")}
                 </h3>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  {locationData[selectedLocation].suggestedQuestions.map((q, idx) => (
+                  {activeLocationData[selectedLocation].suggestedQuestions.map((q, idx) => (
                     <button 
                       key={idx}
                       onClick={() => {
@@ -1392,7 +1445,7 @@ function App() {
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <h3 style={{ margin: 0, color: '#4ade80', fontSize: '18px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <FaKey /> OpenRouter API Anahtarı Doğrulama
+                <FaKey /> {lang === 'TR' ? 'OpenRouter API Anahtarı Doğrulama' : 'OpenRouter API Key Verification'}
               </h3>
               <button 
                 onClick={() => { 
@@ -1411,11 +1464,15 @@ function App() {
 
             {isKeyInvalidOrDeleted ? (
               <p style={{ fontSize: '13px', color: '#f87171', margin: 0, lineHeight: '1.5', fontWeight: 'bold' }}>
-                ⚠️ OpenRouter API anahtarınız silinmiş veya geçersiz hale gelmiş. Devam etmek için lütfen geçerli bir anahtar girin.
+                ⚠️ {lang === 'TR' ? 'OpenRouter API anahtarınız silinmiş veya geçersiz hale gelmiş. Devam etmek için lütfen geçerli bir anahtar girin.' : 'Your OpenRouter API key has been deleted or has become invalid. Please enter a valid key to continue.'}
               </p>
             ) : (
               <p style={{ fontSize: '13px', color: '#a1a1aa', margin: 0, lineHeight: '1.5' }}>
-                OpenRouter API anahtarınız <strong>sk-or-v1-</strong> ile başlamalı, tam olarak <strong>73 karakter</strong> olmalı ve geçerli bir OpenRouter anahtarı olmalıdır. Yanlış veya sahte anahtarlar kesinlikle kabul edilmez.
+                {lang === 'TR' ? (
+                  <>OpenRouter API anahtarınız <strong>sk-or-v1-</strong> ile başlamalı, tam olarak <strong>73 karakter</strong> olmalı ve geçerli bir OpenRouter anahtarı olmalıdır. Yanlış veya sahte anahtarlar kesinlikle kabul edilmez.</>
+                ) : (
+                  <>Your OpenRouter API key must start with <strong>sk-or-v1-</strong>, be exactly <strong>73 characters</strong> long, and be a valid OpenRouter key. Incorrect or fake keys are strictly not accepted.</>
+                )}
               </p>
             )}
             
@@ -1452,7 +1509,7 @@ function App() {
                   opacity: validatingKey ? 0.7 : 1
                 }}
               >
-                {validatingKey ? '⏳ Doğrulanıyor...' : '🔒 Doğrula ve Güvenle Kaydet'}
+                {validatingKey ? (lang === 'TR' ? '⏳ Doğrulanıyor...' : '⏳ Verifying...') : (lang === 'TR' ? '🔒 Doğrula ve Güvenle Kaydet' : '🔒 Verify and Save Securely')}
               </button>
             </form>
           </div>
