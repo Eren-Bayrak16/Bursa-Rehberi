@@ -14,8 +14,6 @@ load_dotenv()
 
 app = FastAPI()
 
-# ALLOWED_ORIGINS .env icinde virgulle ayrilmis liste olarak tanimlanmali,
-# ornek: ALLOWED_ORIGINS=https://bursarehberi.com,https://www.bursarehberi.com
 _allowed_origins_raw = os.environ.get("ALLOWED_ORIGINS", "*")
 ALLOWED_ORIGINS = [o.strip() for o in _allowed_origins_raw.split(",") if o.strip()]
 
@@ -27,7 +25,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# --- Ortam degiskenleri (.env) ---
 ADMIN_EMAIL = os.environ.get("ADMIN_EMAIL")
 if not ADMIN_EMAIL:
     raise RuntimeError("ADMIN_EMAIL ortam degiskeni tanimli degil (.env dosyasina ekleyin).")
@@ -54,6 +51,7 @@ class PromptRequest(BaseModel):
     user_api_key: Optional[str] = None
     model_secimi: Optional[str] = None
     chat_id: Optional[str] = None
+    lang: Optional[str] = "TR"
 
 class ModelRequest(BaseModel):
     model_key: str
@@ -65,6 +63,7 @@ class SystemKeyRequest(BaseModel):
 
 class TestKeyRequest(BaseModel):
     api_key: str
+    lang: Optional[str] = "TR"
 
 
 def get_db_connection():
@@ -130,11 +129,6 @@ def init_db():
 init_db()
 
 
-# --- Gercek kimlik dogrulama ---
-# Istemcinin "ben buyum" diye gonderdigi bir e-posta string'ine ASLA guvenilmez.
-# Bunun yerine, istemcinin Authorization: Bearer <google_access_token> basligiyla
-# gonderdigi jeton dogrudan Google'a soruluyor ve gercek e-posta sunucu
-# tarafinda tespit ediliyor.
 def verify_google_access_token(authorization: Optional[str] = Header(None)) -> str:
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Giris yapmaniz gerekiyor.")
@@ -296,33 +290,41 @@ def clear_user_key(verified_email: str = Depends(verify_google_access_token)):
 
 @app.post("/api/test-key")
 def test_user_api_key(request: TestKeyRequest):
+    is_en = (request.lang or "TR").upper() == "EN"
     clean_key = request.api_key.strip()
     if not clean_key.startswith("sk-or-v1-") or len(clean_key) != 73:
-        raise HTTPException(status_code=400, detail="Hatalı Format: Anahtar 'sk-or-v1-' ile başlamalı ve 73 karakter olmalıdır.")
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid Format: The key must start with 'sk-or-v1-' and be 73 characters long." if is_en
+            else "Hatalı Format: Anahtar 'sk-or-v1-' ile başlamalı ve 73 karakter olmalıdır."
+        )
 
     response = requests.get(
         url="https://openrouter.ai/api/v1/auth/key",
         headers={"Authorization": f"Bearer {clean_key}"}
     )
     if response.status_code != 200:
-        raise HTTPException(status_code=400, detail="Geçersiz API Anahtarı! OpenRouter bu anahtarı reddetti.")
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid API Key! OpenRouter rejected this key." if is_en
+            else "Geçersiz API Anahtarı! OpenRouter bu anahtarı reddetti."
+        )
 
     res_data = response.json()
     if "data" not in res_data:
-        raise HTTPException(status_code=400, detail="Anahtar doğrulanamadı.")
+        raise HTTPException(status_code=400, detail="Key could not be verified." if is_en else "Anahtar doğrulanamadı.")
 
-    return {"message": "API anahtarı başarıyla doğrulandı!", "data": res_data.get("data")}
+    return {"message": "API key successfully verified!" if is_en else "API anahtarı başarıyla doğrulandı!", "data": res_data.get("data")}
 
 
 @app.post("/api/ask")
 def ask_ai(request: PromptRequest, authorization: Optional[str] = Header(None)):
     start_time = time.time()
+    is_en = (request.lang or "TR").upper() == "EN"
     try:
         raw_identity = request.kullanici_adi or "Misafir"
         is_guest = raw_identity == "Misafir"
 
-        # Misafir degilse, istemcinin iddia ettigi e-postaya degil,
-        # Google'in az once dogruladigi GERCEK e-postaya guveniyoruz.
         verified_identity = "Misafir"
         if not is_guest:
             verified_identity = verify_google_access_token(authorization)
@@ -336,7 +338,10 @@ def ask_ai(request: PromptRequest, authorization: Optional[str] = Header(None)):
             if request.user_api_key and request.user_api_key.strip() != "":
                 clean_key = request.user_api_key.strip()
                 if not clean_key.startswith("sk-or-v1-") or len(clean_key) != 73:
-                    raise HTTPException(status_code=400, detail="API anahtarı formatı veya uzunluğu hatalı.")
+                    raise HTTPException(
+                        status_code=400,
+                        detail="API key format or length is incorrect." if is_en else "API anahtarı formatı veya uzunluğu hatalı."
+                    )
 
                 enc_key = encrypt_api_key(clean_key)
                 cursor.execute("""
@@ -356,7 +361,7 @@ def ask_ai(request: PromptRequest, authorization: Optional[str] = Header(None)):
                 conn.close()
                 raise HTTPException(
                     status_code=401,
-                    detail="OpenRouter API anahtarınız silinmiş veya geçersiz hale gelmiş. Lütfen yeni bir anahtar girin."
+                    detail="Your OpenRouter API key has been deleted or has become invalid. Please enter a new key." if is_en else "OpenRouter API anahtarınız silinmiş veya geçersiz hale gelmiş. Lütfen yeni bir anahtar girin."
                 )
         else:
             cursor.execute("SELECT encrypted_api_key FROM users WHERE email = %s", (SYSTEM_GUEST_EMAIL,))
@@ -375,7 +380,8 @@ def ask_ai(request: PromptRequest, authorization: Optional[str] = Header(None)):
                 conn.close()
                 raise HTTPException(
                     status_code=400,
-                    detail="Sistemde misafirler için seçilmiş bir model bulunmuyor. Lütfen admin panelinden bir modeli 'Misafir Modeli Yap' olarak belirleyin."
+                    detail="No model has been selected for guests on the system. Please set a model as the 'Guest Model' from the admin panel." if is_en
+                    else "Sistemde misafirler için seçilmiş bir model bulunmuyor. Lütfen admin panelinden bir modeli 'Misafir Modeli Yap' olarak belirleyin."
                 )
         else:
             selected_model = request.model_secimi
@@ -387,7 +393,7 @@ def ask_ai(request: PromptRequest, authorization: Optional[str] = Header(None)):
                 else:
                     cursor.close()
                     conn.close()
-                    raise HTTPException(status_code=400, detail="Sistemde aktif model bulunmuyor.")
+                    raise HTTPException(status_code=400, detail="No active model found on the system." if is_en else "Sistemde aktif model bulunmuyor.")
 
         cursor.close()
         conn.close()
@@ -395,7 +401,7 @@ def ask_ai(request: PromptRequest, authorization: Optional[str] = Header(None)):
         if not active_api_key or active_api_key.strip() == "":
             raise HTTPException(
                 status_code=401,
-                detail="OpenRouter API anahtarınız silinmiş veya geçersiz hale gelmiş. Lütfen yeni bir anahtar girin."
+                detail="Your OpenRouter API key has been deleted or has become invalid. Please enter a new key." if is_en else "OpenRouter API anahtarınız silinmiş veya geçersiz hale gelmiş. Lütfen yeni bir anahtar girin."
             )
 
         check_res = requests.get(
@@ -415,13 +421,18 @@ def ask_ai(request: PromptRequest, authorization: Optional[str] = Header(None)):
                     pass
             raise HTTPException(
                 status_code=401,
-                detail="OpenRouter API anahtarınız silinmiş veya geçersiz hale gelmiş. Lütfen yeni bir anahtar girin."
+                detail="Your OpenRouter API key has been deleted or has become invalid. Please enter a new key." if is_en else "OpenRouter API anahtarınız silinmiş veya geçersiz hale gelmiş. Lütfen yeni bir anahtar girin."
             )
+
+        if (request.lang or "TR").upper() == "EN":
+            system_prompt_text = "You are an expert AI guide exclusively for the city of Bursa, Turkey. Your task is only to provide information about Bursa's history, culture, food, and places. No matter what language the user asks in, you must always answer fluently and completely in ENGLISH."
+        else:
+            system_prompt_text = "Sen yalnızca Bursa şehri için uzman bir yapay zeka rehberisin. Görevin sadece Bursa'nın tarihi, kültürü, yemekleri, yerleri hakkında bilgi vermektir. Kullanıcı hangi dilde soru sorarsa sorsun daima akıcı ve eksiksiz bir şekilde TÜRKÇE yanıt vermelisin."
 
         messages_payload = [
             {
                 "role": "system",
-                "content": "Sen yalnızca Bursa şehri için uzman bir yapay zeka rehberisin. Görevin sadece Bursa'nın tarihi, kültürü, yemekleri, yerleri hakkında bilgi vermektir. Kullanıcı hangi dilde soru sorarsa sorsun daima akıcı ve eksiksiz bir şekilde TÜRKÇE yanıt vermelisin."
+                "content": system_prompt_text
             }
         ]
 
@@ -447,13 +458,14 @@ def ask_ai(request: PromptRequest, authorization: Optional[str] = Header(None)):
 
         if response.status_code != 200 or "choices" not in res_data:
             error_detail = res_data.get("error", {})
-            error_msg = error_detail.get("message", "Bilinmeyen AI servis hatası")
+            error_msg = error_detail.get("message", "Unknown AI service error" if is_en else "Bilinmeyen AI servis hatası")
             lower_msg = error_msg.lower()
 
             if response.status_code == 402 or "requires more credits" in lower_msg or "can only afford" in lower_msg or "credit" in lower_msg or "balance" in lower_msg or "insufficient" in lower_msg:
                 raise HTTPException(
                     status_code=402,
-                    detail="OpenRouter hesabınızda bu işlem için yeterli bakiye veya kredi kalmadı. Lütfen hesabınızı kontrol edin."
+                    detail="Your OpenRouter account does not have enough balance or credit for this operation. Please check your account." if is_en
+                    else "OpenRouter hesabınızda bu işlem için yeterli bakiye veya kredi kalmadı. Lütfen hesabınızı kontrol edin."
                 )
 
             if response.status_code in [401, 403] or "user not found" in lower_msg or "invalid api key" in lower_msg or "unauthorized" in lower_msg or "key" in lower_msg or "auth" in lower_msg or "not found" in lower_msg:
@@ -469,10 +481,10 @@ def ask_ai(request: PromptRequest, authorization: Optional[str] = Header(None)):
                         pass
                 raise HTTPException(
                     status_code=401,
-                    detail="OpenRouter API anahtarınız silinmiş veya geçersiz hale gelmiş. Lütfen yeni bir anahtar girin."
+                    detail="Your OpenRouter API key has been deleted or has become invalid. Please enter a new key." if is_en else "OpenRouter API anahtarınız silinmiş veya geçersiz hale gelmiş. Lütfen yeni bir anahtar girin."
                 )
 
-            raise HTTPException(status_code=400, detail=f"Yapay Zeka Servis Hatası: {error_msg}")
+            raise HTTPException(status_code=400, detail=f"AI Service Error: {error_msg}" if is_en else f"Yapay Zeka Servis Hatası: {error_msg}")
 
         ai_response_text = res_data["choices"][0]["message"]["content"]
         usage_info = res_data.get("usage", {})
@@ -517,7 +529,7 @@ def ask_ai(request: PromptRequest, authorization: Optional[str] = Header(None)):
     except Exception as e:
         if isinstance(e, HTTPException):
             raise e
-        raise HTTPException(status_code=500, detail=f"Beklenmeyen bir hata oluştu: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"An unexpected error occurred: {str(e)}" if is_en else f"Beklenmeyen bir hata oluştu: {str(e)}")
 
 
 @app.get("/api/admin/stats")
