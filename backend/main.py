@@ -159,6 +159,17 @@ def require_admin(verified_email: str = Depends(verify_google_access_token)) -> 
     return verified_email
 
 
+@app.get("/api/auth/is-admin")
+def check_is_admin(authorization: Optional[str] = Header(None)):
+    if not authorization or not authorization.startswith("Bearer "):
+        return {"is_admin": False}
+    try:
+        email = verify_google_access_token(authorization)
+        return {"is_admin": email == ADMIN_EMAIL}
+    except HTTPException:
+        return {"is_admin": False}
+
+
 @app.get("/api/models")
 def get_models():
     try:
