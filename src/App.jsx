@@ -4,26 +4,27 @@ import ReactMarkdown from 'react-markdown';
 import './App.css'
 import arkaplan from './assets/arkaplan.png'
 import { locationData, locationDataEN } from './data/locationData';
-import { 
-  FaPills, FaLandmark, FaBus, FaFutbol, FaMapMarkerAlt, FaGoogle, 
-  FaRobot, FaUserCircle, FaSun, FaCloudSun, FaTree, FaMountain, 
-  FaWater, FaCity, FaTram, FaUtensils, FaStore, FaMosque, FaTheaterMasks, FaLeaf, FaPizzaSlice, FaShieldAlt, FaTimes, FaKey, FaCogs, FaInfoCircle, FaFilter, FaTrophy, FaBolt, FaPlus, FaTrash, FaSearch, FaClock, FaCalendarAlt, FaCheckCircle, FaEdit, FaCoins, FaCopy, FaRedo, FaVolumeUp, FaStop, FaPencilAlt, FaCheck 
+import {
+  FaPills, FaLandmark, FaBus, FaFutbol, FaMapMarkerAlt, FaGoogle,
+  FaRobot, FaUserCircle, FaSun, FaCloudSun, FaTree, FaMountain,
+  FaWater, FaCity, FaTram, FaUtensils, FaStore, FaMosque, FaTheaterMasks, FaLeaf, FaPizzaSlice, FaShieldAlt, FaTimes, FaKey, FaCogs, FaInfoCircle, FaFilter, FaTrophy, FaBolt, FaPlus, FaTrash, FaSearch, FaClock, FaCalendarAlt, FaCheckCircle, FaEdit, FaCoins, FaCopy, FaRedo, FaVolumeUp, FaStop, FaPencilAlt, FaCheck
 } from 'react-icons/fa'
 
-const ADMIN_EMAIL = "bayrakeren228@gmail.com";
+
 const API_BASE_URL = "http://172.16.12.253.nip.io:8000";
 
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userEmail, setUserEmail] = useState('');
   const [accessToken, setAccessToken] = useState('');
+  const [isAdmin, setIsAdmin] = useState(false);
   const [lang, setLang] = useState('TR');
-  
+
   const [prompt, setPrompt] = useState('');
   const [chatHistory, setChatHistory] = useState([]);
   const [loading, setLoading] = useState(false);
   const [loadingEditIdx, setLoadingEditIdx] = useState(null);
-  
+
   const [elapsedTime, setElapsedTime] = useState(0);
   const [errorMessage, setErrorMessage] = useState('');
   const [showContextWarning, setShowContextWarning] = useState(false);
@@ -62,7 +63,7 @@ function App() {
   const [systemApiKeyInput, setSystemApiKeyInput] = useState('');
   const [currentQuestion, setCurrentQuestion] = useState('');
   const [speakingIdx, setSpeakingIdx] = useState(null);
-  
+
   const abortControllerRef = useRef(null);
   const chatEndRef = useRef(null);
 
@@ -179,6 +180,16 @@ function App() {
         setAccessToken(token);
 
         try {
+          const adminCheckRes = await fetch(`${API_BASE_URL}/api/auth/is-admin`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          const adminCheckData = await adminCheckRes.json();
+          setIsAdmin(!!adminCheckData.is_admin);
+        } catch (adminErr) {
+          setIsAdmin(false);
+        }
+
+        try {
           const keyRes = await fetch(`${API_BASE_URL}/api/get-key`, {
             headers: { Authorization: `Bearer ${token}` },
           });
@@ -207,6 +218,7 @@ function App() {
         setErrorMessage('Google ile giriş yapılamadı. Lütfen tekrar deneyin.');
         setUserEmail('');
         setAccessToken('');
+        setIsAdmin(false);
         setUserApiKey('');
         setIsApiKeySaved(false);
         setIsKeyInvalidOrDeleted(false);
@@ -215,8 +227,8 @@ function App() {
         return;
       }
       setIsLoggedIn(true);
-      setPrompt('');       
-      setChatHistory([]);   
+      setPrompt('');
+      setChatHistory([]);
     },
   });
 
@@ -262,7 +274,7 @@ function App() {
       await fetch(`${API_BASE_URL}/api/ask`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           prompt: "Test",
           kullanici_adi: userEmail,
           user_api_key: trimmedKey,
@@ -382,7 +394,7 @@ function App() {
       setShowApiKeyModal(true);
       return;
     }
-    
+
     if (editIdx !== null) {
       setLoadingEditIdx(editIdx);
     } else {
@@ -400,7 +412,7 @@ function App() {
           body: JSON.stringify({ api_key: userApiKey, lang: lang }),
           signal: abortControllerRef.current.signal,
         });
-        
+
         if (!testRes.ok) {
           setUserApiKey('');
           setIsApiKeySaved(false);
@@ -408,7 +420,7 @@ function App() {
           setLoadingEditIdx(null);
           setIsKeyInvalidOrDeleted(true);
           setShowApiKeyModal(true);
-          
+
           await fetch(`${API_BASE_URL}/api/clear-key`, {
             method: 'POST',
             headers: { Authorization: `Bearer ${accessToken}` },
@@ -442,24 +454,24 @@ function App() {
           'Content-Type': 'application/json',
           ...(isLoggedIn ? { Authorization: `Bearer ${accessToken}` } : {}),
         },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           messages: formattedMessages,
           kullanici_adi: isLoggedIn ? userEmail : 'Misafir',
-          user_api_key: isLoggedIn ? userApiKey : '', 
-          model_secimi: isLoggedIn ? selectedModel : '', 
+          user_api_key: isLoggedIn ? userApiKey : '',
+          model_secimi: isLoggedIn ? selectedModel : '',
           chat_id: currentChatId,
           lang: lang
         }),
         signal: abortControllerRef.current.signal,
       });
-      
+
       const data = await res.json();
-      
+
       if (res.ok) {
         setIsApiKeySaved(true);
         setIsKeyInvalidOrDeleted(false);
         const newEntry = { prompt: newQuestion, response: data.response, isEditing: false, editText: '' };
-        
+
         setChatHistory([...baseHistory, newEntry]);
         setCurrentQuestion('');
 
@@ -476,13 +488,13 @@ function App() {
       } else {
         let rawDetail = data.detail || '';
         let userFriendlyMsg = lang === 'TR' ? 'Şu anda yapay zeka servislerinde geçici bir yoğunluk yaşanıyor. Lütfen biraz sonra tekrar deneyin.' : 'There is currently temporary congestion in the AI services. Please try again shortly.';
-        
+
         if (res.status === 402 || rawDetail.toLowerCase().includes('credits') || rawDetail.toLowerCase().includes('balance') || rawDetail.toLowerCase().includes('insufficient')) {
           userFriendlyMsg = lang === 'TR' ? 'OpenRouter hesabınızda bu işlem için yeterli bakiye veya kredi kalmadı. Lütfen hesabınızı kontrol edin.' : 'Your OpenRouter account does not have enough balance or credit for this operation. Please check your account.';
           setErrorMessage(userFriendlyMsg);
         } else if (res.status === 401 || rawDetail.includes('401') || rawDetail.toLowerCase().includes('key') || rawDetail.toLowerCase().includes('unauthorized') || rawDetail.toLowerCase().includes('geçersiz') || rawDetail.toLowerCase().includes('silinmiş') || rawDetail.toLowerCase().includes('auth') || rawDetail.toLowerCase().includes('not found')) {
           userFriendlyMsg = lang === 'TR' ? 'OpenRouter API anahtarınız silinmiş veya geçersiz hale gelmiş. Lütfen yeni bir anahtar girin.' : 'Your OpenRouter API key has been deleted or has become invalid. Please enter a new key.';
-          setUserApiKey(''); 
+          setUserApiKey('');
           setIsApiKeySaved(false);
           setErrorMessage(userFriendlyMsg);
           if (isLoggedIn) {
@@ -535,9 +547,9 @@ function App() {
       summaryPromptMessages.push({ role: 'user', content: item.prompt });
       summaryPromptMessages.push({ role: 'assistant', content: item.response });
     });
-    summaryPromptMessages.push({ 
-      role: 'user', 
-      content: "Lütfen yukarıdaki tüm konuşma geçmişimizi detaylı bir şekilde özetle." 
+    summaryPromptMessages.push({
+      role: 'user',
+      content: "Lütfen yukarıdaki tüm konuşma geçmişimizi detaylı bir şekilde özetle."
     });
 
     try {
@@ -547,16 +559,16 @@ function App() {
           'Content-Type': 'application/json',
           ...(isLoggedIn ? { Authorization: `Bearer ${accessToken}` } : {}),
         },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           messages: summaryPromptMessages,
           kullanici_adi: isLoggedIn ? userEmail : 'Misafir',
-          user_api_key: isLoggedIn ? userApiKey : '', 
-          model_secimi: isLoggedIn ? selectedModel : '', 
+          user_api_key: isLoggedIn ? userApiKey : '',
+          model_secimi: isLoggedIn ? selectedModel : '',
           chat_id: currentChatId,
           lang: lang
         }),
       });
-      
+
       const data = await res.json();
       if (res.ok) {
         setChatHistory(prev => [...prev, { prompt: "Konuşmanın özetini çıkarır mısın?", response: data.response, isEditing: false, editText: '' }]);
@@ -582,7 +594,7 @@ function App() {
 
   const handlePresetClick = (soruMetni) => {
     if (limitReached) return;
-    setSelectedLocation(null); 
+    setSelectedLocation(null);
     setPrompt(soruMetni);
     handleAskAI(soruMetni);
   };
@@ -591,6 +603,7 @@ function App() {
     setIsLoggedIn(false);
     setUserEmail('');
     setAccessToken('');
+    setIsAdmin(false);
     setUserApiKey('');
     setIsApiKeySaved(false);
     setShowApiKeyModal(false);
@@ -626,10 +639,10 @@ function App() {
       const res = await fetch(`${API_BASE_URL}/api/models`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
-        body: JSON.stringify({ 
-          model_key: modelObj.id, 
+        body: JSON.stringify({
+          model_key: modelObj.id,
           model_name: modelObj.name,
-          is_default_free: false 
+          is_default_free: false
         })
       });
       const data = await res.json();
@@ -823,7 +836,7 @@ function App() {
     const tokensPerSecond = totalTimeForModel > 0 ? Math.round(totalTokensForModel / totalTimeForModel) : 0;
     const avgTime = stats.count > 0 ? (stats.totalTime / stats.count).toFixed(2) : '0.00';
     const totalTokensCount = stats.totalTokens.toLocaleString('tr-TR');
-    let costPerToken = 0.000002; 
+    let costPerToken = 0.000002;
     const isModelFree = m.includes('free') || m.includes('flash');
     if (isModelFree) costPerToken = 0.0;
     const estimatedCostNum = stats.totalTokens * costPerToken;
@@ -832,26 +845,26 @@ function App() {
     return { model: m, avgTime, totalTokensCount, tokensPerSecond, totalUses: stats.count, estimatedCost, isModelFree };
   }).sort((a, b) => b.tokensPerSecond - a.tokensPerSecond);
 
-  const filteredOpenRouterModels = openRouterModels.filter(m => 
-    m.name.toLowerCase().includes(modelSearchQuery.toLowerCase()) || 
+  const filteredOpenRouterModels = openRouterModels.filter(m =>
+    m.name.toLowerCase().includes(modelSearchQuery.toLowerCase()) ||
     m.id.toLowerCase().includes(modelSearchQuery.toLowerCase())
   );
 
   const activeLocationData = lang === 'TR' ? locationData : locationDataEN;
 
   return (
-    <div 
-      className="hero-section" 
-      style={{ 
-        backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.35)), url(${arkaplan})` 
+    <div
+      className="hero-section"
+      style={{
+        backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.35)), url(${arkaplan})`
       }}
     >
-      
+
       <aside className="sidebar">
         <div className="sidebar-brand" onClick={() => setSelectedLocation(null)} style={{ cursor: 'pointer' }}>
           <span className="logo-icon"><FaMapMarkerAlt /></span> Bursa
         </div>
-        
+
         <div className="sidebar-section-title">{lang === 'TR' ? 'ŞEHRİ KEŞFEDİN' : 'EXPLORE CITY'}</div>
         <ul className="sidebar-menu">
           <li><a href="#top" onClick={(e) => { e.preventDefault(); setSelectedLocation("Trilye"); }}><FaCity /> Trilye</a></li>
@@ -900,7 +913,7 @@ function App() {
         </div>
 
         {limitReached && (
-          <button 
+          <button
             onClick={handleStartNewSession}
             style={{
               background: '#4ade80', color: '#000', border: 'none', padding: '8px 14px',
@@ -912,8 +925,8 @@ function App() {
           </button>
         )}
 
-        {isLoggedIn && userEmail === ADMIN_EMAIL && (
-          <button 
+        {isLoggedIn && isAdmin && (
+          <button
             onClick={fetchAdminStats}
             style={{
               background: '#22c55e', color: 'white', border: 'none', padding: '8px 14px',
@@ -938,13 +951,13 @@ function App() {
       </div>
 
       <div className="hero-content" style={{ display: 'flex', flexDirection: 'column', justifyContent: chatHistory.length > 0 || loading ? 'flex-end' : 'center', height: '100%', paddingBottom: '20px', position: 'relative', boxSizing: 'border-box' }}>
-        
+
         {showContextWarning && !limitReached && (
           <div style={{
-            background: 'rgba(24, 24, 27, 0.95)', backdropFilter: 'blur(15px)', 
-            border: '1px solid rgba(59, 130, 246, 0.5)', padding: '16px 20px', 
+            background: 'rgba(24, 24, 27, 0.95)', backdropFilter: 'blur(15px)',
+            border: '1px solid rgba(59, 130, 246, 0.5)', padding: '16px 20px',
             borderRadius: '16px', color: '#f1f5f9', fontSize: '13px',
-            display: 'flex', flexDirection: 'column', gap: '12px', width: '90%', maxWidth: '900px', 
+            display: 'flex', flexDirection: 'column', gap: '12px', width: '90%', maxWidth: '900px',
             margin: '0 auto 12px auto', boxSizing: 'border-box', boxShadow: '0 10px 30px rgba(0,0,0,0.6)'
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#60a5fa', fontWeight: 'bold' }}>
@@ -954,19 +967,19 @@ function App() {
               {lang === 'TR' ? 'Konuşma geçmişimiz hafıza sınırına yaklaştı. Konuşmanın tamamının özetini alıp yeni oturuma geçmek ister misiniz?' : 'Our conversation is approaching the memory limit. Would you like a summary of the whole conversation and to start a new session?'}
             </p>
             <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
-              <button 
+              <button
                 onClick={handleRequestSummary}
                 style={{ background: '#2563eb', color: '#fff', border: 'none', padding: '8px 14px', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}
               >
                 <span>📝</span> {lang === 'TR' ? 'Konuşmanın Özetini İste' : 'Request Conversation Summary'}
               </button>
-              <button 
+              <button
                 onClick={handleStartNewSession}
                 style={{ background: 'rgba(34, 197, 94, 0.2)', border: '1px solid rgba(34, 197, 94, 0.4)', color: '#4ade80', padding: '8px 14px', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer', fontSize: '12px' }}
               >
                 ✨ {lang === 'TR' ? 'Doğrudan Yeni Oturuma Başla' : 'Start New Session Directly'}
               </button>
-              <button 
+              <button
                 onClick={() => setShowContextWarning(false)}
                 style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.2)', color: '#a1a1aa', padding: '8px 12px', borderRadius: '10px', cursor: 'pointer', fontSize: '12px', marginLeft: 'auto' }}
               >
@@ -980,18 +993,18 @@ function App() {
           <div style={{ flex: 1, overflowY: 'auto', width: '100%', maxWidth: '900px', margin: '0 auto', padding: '20px 10px', display: 'flex', flexDirection: 'column', gap: '24px', maxHeight: 'calc(100vh - 220px)' }}>
             {chatHistory.map((chat, idx) => (
               <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: '16px', width: '100%' }}>
-                
+
                 <div style={{ display: 'flex', gap: '12px', alignItems: 'center', alignSelf: 'flex-end', maxWidth: '85%' }}>
                   {!chat.isEditing && (
                     <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
-                      <button 
+                      <button
                         onClick={() => handleCopyText(chat.prompt)}
                         title={lang === 'TR' ? 'İstemi Kopyala' : 'Copy Prompt'}
                         style={{ background: 'rgba(255,255,255,0.08)', border: 'none', borderRadius: '50%', width: '28px', height: '28px', color: '#a1a1aa', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                       >
                         <FaCopy size={11} />
                       </button>
-                      <button 
+                      <button
                         onClick={() => {
                           const updated = [...chatHistory];
                           updated[idx].isEditing = true;
@@ -1008,8 +1021,8 @@ function App() {
 
                   {chat.isEditing ? (
                     <div style={{ background: '#2563eb', padding: '8px 12px', borderRadius: '14px', display: 'flex', gap: '6px', alignItems: 'center', boxShadow: '0 4px 15px rgba(37,99,235,0.4)' }}>
-                      <input 
-                        type="text" 
+                      <input
+                        type="text"
                         value={chat.editText !== undefined ? chat.editText : chat.prompt}
                         onChange={(e) => {
                           const updated = [...chatHistory];
@@ -1020,14 +1033,14 @@ function App() {
                         style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.3)', color: 'white', padding: '6px 10px', borderRadius: '8px', outline: 'none', fontSize: '14px', width: '220px' }}
                         autoFocus
                       />
-                      <button 
+                      <button
                         onClick={() => handleEditSubmit(idx, chat.editText)}
                         title="Onayla"
                         style={{ background: '#4ade80', color: '#000', border: 'none', width: '26px', height: '26px', borderRadius: '50%', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                       >
                         <FaCheck size={11} />
                       </button>
-                      <button 
+                      <button
                         onClick={() => {
                           const updated = [...chatHistory];
                           updated[idx].isEditing = false;
@@ -1049,22 +1062,22 @@ function App() {
                     <FaUserCircle />
                   </div>
                 </div>
-                
+
                 {loadingEditIdx === idx ? (
                   <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start', alignSelf: 'flex-start', maxWidth: '85%' }}>
                     <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: '#22c55e', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', flexShrink: 0, fontSize: '12px', marginTop: '2px' }}>
                       <FaRobot />
                     </div>
-                    <div style={{ 
-                      background: 'rgba(18, 18, 20, 0.95)', 
-                      backdropFilter: 'blur(20px)', 
-                      border: '1px solid rgba(74, 222, 128, 0.3)', 
-                      padding: '16px 20px', 
-                      borderRadius: '4px 18px 18px 18px', 
-                      display: 'flex', 
-                      alignItems: 'center', 
-                      gap: '12px', 
-                      color: '#f1f5f9', 
+                    <div style={{
+                      background: 'rgba(18, 18, 20, 0.95)',
+                      backdropFilter: 'blur(20px)',
+                      border: '1px solid rgba(74, 222, 128, 0.3)',
+                      padding: '16px 20px',
+                      borderRadius: '4px 18px 18px 18px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '12px',
+                      color: '#f1f5f9',
                       boxShadow: '0 15px 35px rgba(0,0,0,0.6)'
                     }}>
                       <div style={{ color: '#4ade80', fontWeight: 'bold', fontSize: '12px' }}>
@@ -1090,21 +1103,21 @@ function App() {
                       <ReactMarkdown>{chat.response}</ReactMarkdown>
 
                       <div style={{ display: 'flex', gap: '16px', marginTop: '12px', borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '10px', alignItems: 'center' }}>
-                        <button 
+                        <button
                           onClick={() => handleCopyText(chat.response)}
                           title={lang === 'TR' ? 'Yanıtı Kopyala' : 'Copy Response'}
                           style={{ background: 'transparent', border: 'none', color: '#a1a1aa', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px', fontSize: '12px', transition: 'color 0.2s' }}
                         >
                           <FaCopy /> {lang === 'TR' ? 'Kopyala' : 'Copy'}
                         </button>
-                        <button 
+                        <button
                           onClick={() => handleAskAI(chat.prompt)}
                           title={lang === 'TR' ? 'Yeniden Sor' : 'Ask Again'}
                           style={{ background: 'transparent', border: 'none', color: '#a1a1aa', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px', fontSize: '12px' }}
                         >
                           <FaRedo /> {lang === 'TR' ? 'Yeniden Sor' : 'Ask Again'}
                         </button>
-                        <button 
+                        <button
                           onClick={() => {
                             if (speakingIdx === idx) {
                               window.speechSynthesis.cancel();
@@ -1141,16 +1154,16 @@ function App() {
                   <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: '#22c55e', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', flexShrink: 0, fontSize: '12px', marginTop: '2px' }}>
                     <FaRobot />
                   </div>
-                  <div style={{ 
-                    background: 'rgba(24, 24, 27, 0.95)', 
-                    backdropFilter: 'blur(20px)', 
-                    border: '1px solid rgba(255, 255, 255, 0.1)', 
-                    padding: '16px 20px', 
-                    borderRadius: '4px 18px 18px 18px', 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    gap: '12px', 
-                    color: '#f1f5f9', 
+                  <div style={{
+                    background: 'rgba(24, 24, 27, 0.95)',
+                    backdropFilter: 'blur(20px)',
+                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                    padding: '16px 20px',
+                    borderRadius: '4px 18px 18px 18px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px',
+                    color: '#f1f5f9',
                     boxShadow: '0 15px 35px rgba(0,0,0,0.5)'
                   }}>
                     <div style={{ color: '#4ade80', fontWeight: 'bold', fontSize: '12px' }}>
@@ -1174,13 +1187,13 @@ function App() {
           <>
             <h1 className="main-title">{lang === 'TR' ? <>BURSA'YI <br /> KEŞFET</> : <>DISCOVER <br /> BURSA</>}</h1>
             <p className="main-subtitle">
-              {lang === 'TR' 
-                ? "Yapay zekâ destekli rehberinizle şehri keşfetme zamanı geldi." 
+              {lang === 'TR'
+                ? "Yapay zekâ destekli rehberinizle şehri keşfetme zamanı geldi."
                 : "It's time to explore the city with your AI-powered guide."}
             </p>
           </>
         )}
-        
+
         {isLoggedIn && (
           <div style={{
             display: 'flex', gap: '10px', width: '90%', maxWidth: '900px', margin: '0 auto 10px auto',
@@ -1190,8 +1203,8 @@ function App() {
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#4ade80', fontSize: '13px', fontWeight: '600' }}>
               <FaCogs /> Model:
             </div>
-            <select 
-              value={selectedModel} 
+            <select
+              value={selectedModel}
               onChange={(e) => setSelectedModel(e.target.value)}
               style={{
                 background: 'rgba(0,0,0,0.6)', color: 'white', border: '1px solid rgba(255,255,255,0.2)',
@@ -1208,14 +1221,14 @@ function App() {
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(34,197,94,0.1)', padding: '6px 12px', borderRadius: '8px' }}>
               <FaCheckCircle style={{ color: '#4ade80' }} />
               <span style={{ color: '#4ade80', fontSize: '13px', fontWeight: '600' }}>{lang === 'TR' ? 'API Key Güvenle Kaydedildi' : 'API Key Securely Saved'}</span>
-              <button 
-                onClick={async () => { 
-                  setUserApiKey(''); 
-                  setIsApiKeySaved(false); 
-                  setIsKeyInvalidOrDeleted(false); 
-                  setTempApiKeyInput(''); 
-                  setApiKeyErrorMsg(''); 
-                  setShowApiKeyModal(true); 
+              <button
+                onClick={async () => {
+                  setUserApiKey('');
+                  setIsApiKeySaved(false);
+                  setIsKeyInvalidOrDeleted(false);
+                  setTempApiKeyInput('');
+                  setApiKeyErrorMsg('');
+                  setShowApiKeyModal(true);
                   try {
                     await fetch(`${API_BASE_URL}/api/clear-key`, {
                       method: 'POST',
@@ -1223,7 +1236,7 @@ function App() {
                     });
                   } catch (err) {
                   }
-                }} 
+                }}
                 style={{ background: 'rgba(59, 130, 246, 0.2)', border: '1px solid rgba(59, 130, 246, 0.4)', color: '#60a5fa', cursor: 'pointer', fontSize: '12px', padding: '4px 10px', borderRadius: '6px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px', marginLeft: '6px' }}
               >
                 <FaEdit /> {lang === 'TR' ? 'Değiştir' : 'Change'}
@@ -1251,7 +1264,7 @@ function App() {
 
         <div className="action-buttons" style={{ flexDirection: 'column', width: '90%', maxWidth: '1200px', margin: '0 auto', alignItems: 'center', boxSizing: 'border-box' }}>
           <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '14px', maxWidth: '900px' }}>
-            
+
             {limitReached ? (
               <div style={{
                 background: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239, 68, 68, 0.4)',
@@ -1262,12 +1275,12 @@ function App() {
               </div>
             ) : (
               <div style={{ display: 'flex', gap: '8px', width: '100%' }}>
-                <input 
-                  type="text" 
-                  value={prompt} 
+                <input
+                  type="text"
+                  value={prompt}
                   onChange={(e) => setPrompt(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && !loading && handleAskAI()}
-                  placeholder={lang === 'TR' ? "Bursa hakkında ne öğrenmek istiyorsun?" : "What do you want to learn about Bursa?"} 
+                  placeholder={lang === 'TR' ? "Bursa hakkında ne öğrenmek istiyorsun?" : "What do you want to learn about Bursa?"}
                   style={{
                     flex: 1, padding: '14px 20px', borderRadius: '20px',
                     border: '1px solid rgba(255, 255, 255, 0.2)', background: 'rgba(0, 0, 0, 0.6)',
@@ -1276,7 +1289,7 @@ function App() {
                 />
 
                 {loading ? (
-                  <button 
+                  <button
                     onClick={handleStopGeneration}
                     style={{
                       background: '#ef4444', color: 'white', border: 'none',
@@ -1288,8 +1301,8 @@ function App() {
                     <FaStop /> {lang === 'TR' ? 'Durdur' : 'Stop'}
                   </button>
                 ) : (
-                  <button 
-                    className="btn btn-ai" 
+                  <button
+                    className="btn btn-ai"
                     onClick={() => handleAskAI()}
                     style={{ padding: '14px 24px', borderRadius: '20px', cursor: 'pointer', fontSize: '14px' }}
                   >
@@ -1321,7 +1334,7 @@ function App() {
             justifyContent: 'flex-start', padding: '40px 20px', overflowY: 'auto',
             color: '#f4f4f5', animation: 'fadeIn 0.4s ease-in-out'
           }}>
-            <div style={{ 
+            <div style={{
               width: '100%', maxWidth: '1000px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px',
               padding: '0 10px'
             }}>
@@ -1330,7 +1343,7 @@ function App() {
                 <h1 style={{ margin: '5px 0 0 0', fontSize: '32px', color: '#ffffff', fontWeight: '800', minHeight: '40px' }}>{activeLocationData[selectedLocation].title}</h1>
                 <p style={{ margin: '5px 0 0 0', fontSize: '15px', color: '#a1a1aa', fontStyle: 'italic' }}>{activeLocationData[selectedLocation].subtitle}</p>
               </div>
-              <button 
+              <button
                 onClick={() => setSelectedLocation(null)}
                 style={{
                   background: 'rgba(255, 255, 255, 0.1)', border: '1px solid rgba(255, 255, 255, 0.2)',
@@ -1343,7 +1356,7 @@ function App() {
               </button>
             </div>
 
-            <div style={{ 
+            <div style={{
               width: '100%', maxWidth: '1000px', background: 'rgba(24, 24, 27, 0.9)',
               backdropFilter: 'blur(20px)', border: '1px solid rgba(255, 255, 255, 0.15)',
               borderRadius: '24px', padding: '30px', boxShadow: '0 25px 50px rgba(0,0,0,0.8)',
@@ -1352,7 +1365,7 @@ function App() {
             }}>
               <div>
                 <h3 style={{ fontSize: '16px', color: '#4ade80', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                  📖 {["İskender Kebap", "İnegöl Köfte", "Kestane Şekeri", "Kemalpaşa Tatlısı", "Bursa Şeftalisi", "Cantık"].includes(selectedLocation) 
+                  📖 {["İskender Kebap", "İnegöl Köfte", "Kestane Şekeri", "Kemalpaşa Tatlısı", "Bursa Şeftalisi", "Cantık"].includes(selectedLocation)
                     ? (lang === 'TR' ? "Lezzet Hakkında Detaylı Bilgi" : "Detailed Information About This Dish")
                     : (lang === 'TR' ? "Mekan Hakkında Detaylı Tanıtım" : "Detailed Introduction to This Place")}
                 </h3>
@@ -1374,13 +1387,13 @@ function App() {
 
               <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '20px' }}>
                 <h3 style={{ fontSize: '16px', color: '#4ade80', marginBottom: '15px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                  🤖 {["İskender Kebap", "İnegöl Köfte", "Kestane Şekeri", "Kemalpaşa Tatlısı", "Bursa Şeftalisi", "Cantık"].includes(selectedLocation) 
+                  🤖 {["İskender Kebap", "İnegöl Köfte", "Kestane Şekeri", "Kemalpaşa Tatlısı", "Bursa Şeftalisi", "Cantık"].includes(selectedLocation)
                     ? (lang === 'TR' ? "Yapay Zeka Rehberine Bu Lezzet İçin Sorulabilecek Sorular:" : "Questions You Can Ask the AI Guide About This Dish:")
                     : (lang === 'TR' ? "Yapay Zeka Rehberine Bu Mekan İçin Sorulabilecek Sorular:" : "Questions You Can Ask the AI Guide About This Place:")}
                 </h3>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                   {activeLocationData[selectedLocation].suggestedQuestions.map((q, idx) => (
-                    <button 
+                    <button
                       key={idx}
                       onClick={() => {
                         setSelectedLocation(null);
@@ -1414,13 +1427,13 @@ function App() {
                 <h3>{lang === 'TR' ? 'Bursa Tanıtımı' : 'City Overview'}</h3>
                 <p>{lang === 'TR' ? "Bursa'nın tarihi, kültürü ve genel yapısı hakkında kapsamlı bilgi alın." : "Get comprehensive information about Bursa's history, culture and general structure."}</p>
               </div>
-              
+
               <a href="https://www.burulas.com.tr/" target="_blank" rel="noopener noreferrer" className="service-card">
                 <span className="icon"><FaBus /></span>
                 <h3>{lang === 'TR' ? 'Ulaşım' : 'Timetables'}</h3>
                 <p>{lang === 'TR' ? 'BURULAŞ hatlarında canlı sefer saatlerini görün, güzergahınızı planlayın.' : 'See live departure times on BURULAŞ lines and plan your route.'}</p>
               </a>
-              
+
               <a href="https://www.passo.com.tr" target="_blank" rel="noopener noreferrer" className="service-card">
                 <span className="icon"><FaFutbol /></span>
                 <h3>{lang === 'TR' ? 'Maç Biletleri' : 'Match Tickets'}</h3>
@@ -1447,15 +1460,15 @@ function App() {
               <h3 style={{ margin: 0, color: '#4ade80', fontSize: '18px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <FaKey /> {lang === 'TR' ? 'OpenRouter API Anahtarı Doğrulama' : 'OpenRouter API Key Verification'}
               </h3>
-              <button 
-                onClick={() => { 
-                  setShowApiKeyModal(false); 
-                  setApiKeyErrorMsg(''); 
+              <button
+                onClick={() => {
+                  setShowApiKeyModal(false);
+                  setApiKeyErrorMsg('');
                   setIsKeyInvalidOrDeleted(false);
                   if (!userApiKey || !userApiKey.trim()) {
                     handleLogout();
                   }
-                }} 
+                }}
                 style={{ background: 'transparent', border: 'none', color: '#a1a1aa', cursor: 'pointer', fontSize: '18px' }}
               >
                 <FaTimes />
@@ -1475,9 +1488,9 @@ function App() {
                 )}
               </p>
             )}
-            
+
             <form onSubmit={handleSaveUserApiKey} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              <input 
+              <input
                 type="password"
                 placeholder="sk-or-v1-..."
                 value={tempApiKeyInput}
@@ -1499,7 +1512,7 @@ function App() {
                 </div>
               )}
 
-              <button 
+              <button
                 type="submit"
                 disabled={validatingKey}
                 style={{
@@ -1536,7 +1549,7 @@ function App() {
                 <h2 style={{ margin: 0, fontSize: '18px', display: 'flex', alignItems: 'center', gap: '8px', color: '#4ade80' }}>
                   <FaShieldAlt /> Yönetici Paneli
                 </h2>
-                
+
                 <div style={{ display: 'flex', background: '#18181b', borderRadius: '8px', padding: '3px', border: '1px solid rgba(255,255,255,0.1)', gap: '4px' }}>
                   <button
                     onClick={() => setAdminTab('stats')}
@@ -1569,7 +1582,7 @@ function App() {
             </div>
 
             <div style={{ padding: '24px', overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: '24px' }}>
-              
+
               {adminTab === 'stats' ? (
                 <>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
@@ -1724,9 +1737,9 @@ function App() {
                       <h3 style={{ fontSize: '15px', margin: 0, color: '#e4e4e7', display: 'flex', alignItems: 'center', gap: '6px' }}>
                         <FaFilter /> Soru-Cevap Geçmişi ({filteredHistory.length})
                       </h3>
-                      
+
                       <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
-                        <select 
+                        <select
                           value={selectedUserFilter}
                           onChange={(e) => { setSelectedUserFilter(e.target.value); setAdminPage(1); }}
                           style={{
@@ -1742,8 +1755,8 @@ function App() {
 
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#a1a1aa' }}>
                           <span>Kayıt:</span>
-                          <select 
-                            value={rowsPerPage} 
+                          <select
+                            value={rowsPerPage}
                             onChange={(e) => { setRowsPerPage(Number(e.target.value)); setAdminPage(1); }}
                             style={{ background: '#18181b', color: 'white', border: '1px solid rgba(255,255,255,0.1)', padding: '4px 8px', borderRadius: '6px', outline: 'none' }}
                           >
@@ -1783,7 +1796,7 @@ function App() {
                                 const tokens = Number(item.total_tokens || 0);
                                 const timeSec = Number(item.sure || 0.1);
                                 const speed = timeSec > 0 ? Math.round(tokens / timeSec) : 0;
-                                
+
                                 let costRate = 0.000002;
                                 const isRowFree = (item.model_adi || '').includes('free') || (item.model_adi || '').includes('flash');
                                 if (isRowFree) costRate = 0.0;
@@ -1792,8 +1805,8 @@ function App() {
                                 const rowCostText = isRowFree ? "Free" : `$${costNum.toFixed(6)}`;
 
                                 return (
-                                  <tr 
-                                    key={item.id} 
+                                  <tr
+                                    key={item.id}
                                     onClick={() => setSelectedModalItem(item)}
                                     title="Detayları görmek için tıklayın"
                                     style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', background: '#18181b', cursor: 'pointer', transition: 'background 0.15s' }}
@@ -1844,7 +1857,7 @@ function App() {
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                   <h3 style={{ fontSize: '15px', color: '#4ade80', margin: 0 }}>🤖 Sistemdeki Aktif Modeller</h3>
-                  
+
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                     {modelsList.map((m) => (
                       <div key={m.id} style={{
@@ -1862,9 +1875,9 @@ function App() {
                           </div>
                           <span style={{ color: '#a1a1aa', fontSize: '12px', fontFamily: 'monospace' }}>{m.model_key}</span>
                         </div>
-                        
+
                         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                          <button 
+                          <button
                             onClick={() => handleSetFreeModel(m.id)}
                             style={{
                               background: m.is_default_free ? 'rgba(239, 68, 68, 0.15)' : 'rgba(59, 130, 246, 0.15)',
@@ -1875,8 +1888,8 @@ function App() {
                           >
                             {m.is_default_free ? 'Misafir Modelini Kaldır' : 'Misafir Modeli Yap'}
                           </button>
-                          
-                          <button 
+
+                          <button
                             onClick={() => handleDeleteModel(m.id)}
                             style={{
                               background: 'rgba(239, 68, 68, 0.15)', color: '#f87171', border: '1px solid rgba(239, 68, 68, 0.3)',
@@ -1895,10 +1908,10 @@ function App() {
                     <h3 style={{ fontSize: '15px', color: '#4ade80', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <FaSearch /> OpenRouter Model Kataloğundan Ekle
                     </h3>
-                    
-                    <input 
-                      type="text" 
-                      placeholder="Model ara (Örn: Claude, GPT, Gemini, Llama)..." 
+
+                    <input
+                      type="text"
+                      placeholder="Model ara (Örn: Claude, GPT, Gemini, Llama)..."
                       value={modelSearchQuery}
                       onChange={(e) => setModelSearchQuery(e.target.value)}
                       style={{
@@ -1949,9 +1962,9 @@ function App() {
                     <form onSubmit={handleSaveSystemKey} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                       <div>
                         <label style={{ display: 'block', fontSize: '12px', color: '#a1a1aa', marginBottom: '4px' }}>OpenRouter API Key (Misafirler için ortak kullanılacak):</label>
-                        <input 
-                          type="password" 
-                          placeholder="sk-or-v1-..." 
+                        <input
+                          type="password"
+                          placeholder="sk-or-v1-..."
                           value={systemApiKeyInput}
                           onChange={(e) => setSystemApiKeyInput(e.target.value)}
                           style={{
@@ -1960,7 +1973,7 @@ function App() {
                           }}
                         />
                       </div>
-                      <button 
+                      <button
                         type="submit"
                         style={{
                           background: '#facc15', color: '#000000', border: 'none', padding: '12px',
@@ -1995,8 +2008,8 @@ function App() {
           }}>
             <div style={{ padding: '18px 24px', background: '#27272a', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.1)', flexShrink: 0 }}>
               <div style={{ display: 'flex', gap: '10px', alignItems: 'center', fontSize: '13px', color: '#4ade80', fontFamily: 'monospace', flexWrap: 'wrap' }}>
-                <span>Query #{selectedModalItem.id}</span> 
-                <span>• Chat: {selectedModalItem.chat_id || 'N/A'}</span> 
+                <span>Query #{selectedModalItem.id}</span>
+                <span>• Chat: {selectedModalItem.chat_id || 'N/A'}</span>
                 <span style={{ color: '#facc15' }}>• {selectedModalItem.request_id || 'N/A'}</span>
               </div>
               <button onClick={() => setSelectedModalItem(null)} style={{ background: 'transparent', border: 'none', color: '#a1a1aa', cursor: 'pointer', fontSize: '18px' }}>
