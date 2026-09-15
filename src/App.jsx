@@ -10,7 +10,6 @@ import {
   FaWater, FaCity, FaTram, FaUtensils, FaStore, FaMosque, FaTheaterMasks, FaLeaf, FaPizzaSlice, FaShieldAlt, FaTimes, FaKey, FaCogs, FaInfoCircle, FaFilter, FaTrophy, FaBolt, FaPlus, FaTrash, FaSearch, FaClock, FaCalendarAlt, FaCheckCircle, FaEdit, FaCoins, FaCopy, FaRedo, FaVolumeUp, FaStop, FaPencilAlt, FaCheck
 } from 'react-icons/fa'
 
-
 const API_BASE_URL = "http://172.16.12.253.nip.io:8000";
 
 function App() {
