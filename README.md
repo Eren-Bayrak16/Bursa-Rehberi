@@ -1,4 +1,4 @@
-#  Bursa AI Keşif Rehberi
+#  Bursa Şehir Rehberi
 
 Bursa'nın tarihini, kültürünü, gezilecek yerlerini ve yerel lezzetlerini yapay zeka destekli bir sohbet asistanıyla keşfetmenizi sağlayan tam kapsamlı (full-stack) bir web uygulaması. Aynı zamanda çoklu LLM sağlayıcısını tek bir sistem üzerinden yönetmeyi gösteren bir portföy/demo projesidir.
 
